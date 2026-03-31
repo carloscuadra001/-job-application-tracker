@@ -1,0 +1,570 @@
+{% extends 'base.html' %}
+{% block title %}Jobs{% endblock %}
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1><i class="bi bi-briefcase me-2"></i>Job Listings</h1>
+        <p class="text-muted">Track job opportunities from various companies.</p>
+    </div>
+</div>
+
+<div id="alertContainer"></div>
+
+<div class="row mb-4">
+    <div class="col-12 d-flex flex-wrap gap-2">
+        <a href="/companies" class="btn btn-outline-secondary flex-fill">
+            <i class="bi bi-arrow-left me-1"></i>Companies
+        </a>
+        <button class="btn btn-primary flex-fill" data-bs-toggle="modal" data-bs-target="#addJobModal">
+            <i class="bi bi-plus-lg me-1"></i>Add New Job
+        </button>
+        <a href="/applications" class="btn btn-outline-secondary flex-fill">
+            Applications<i class="bi bi-arrow-right ms-1"></i>
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Job List ({{ jobs|length }})</h5>
+            </div>
+            <div class="card-body">
+                {% if jobs %}
+                <div class="row g-4">
+                    {% for job in jobs %}
+                    <div class="col-12 col-md-6 col-lg-4">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body d-flex flex-column">
+                                <h5 class="card-title text-primary">{{ job.title }}</h5>
+                                <div class="mb-2">
+                                    <span class="badge bg-info">{{ job.type }}</span>
+                                </div>
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">
+                                        <strong>Company:</strong> {{ job.company }}
+                                    </small>
+                                </div>
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">
+                                        <strong>Salary:</strong> ${{ "{:,.2f}".format(job.salary_min) }} – ${{ "{:,.2f}".format(job.salary_max) }}
+                                    </small>
+                                </div>
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">
+                                        <strong>Posted:</strong> {{ job.date_posted }}
+                                    </small>
+                                </div>
+                                {% if job.requirements %}
+                                <div class="mb-2">
+                                    {% for req in job.requirements %}
+                                    {% if req.level == 'Required' %}
+                                    <span class="badge bg-danger me-1 mb-1">{{ req.skill }}</span>
+                                    {% elif req.level == 'Nice-to-have' %}
+                                    <span class="badge bg-secondary me-1 mb-1">{{ req.skill }}</span>
+                                    {% else %}
+                                    <span class="badge bg-primary me-1 mb-1">{{ req.skill }} <small>({{ req.level }})</small></span>
+                                    {% endif %}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                <div class="mt-auto pt-2 border-top d-flex gap-2">
+                                    <a href="{{ job.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-box-arrow-up-right me-1"></i>View Posting
+                                    </a>
+                                    <button class="btn btn-sm btn-outline-secondary edit-job-btn"
+                                            data-job-id="{{ job.id }}"
+                                            data-company-id="{{ job.company_id }}"
+                                            data-title="{{ job.title }}"
+                                            data-type="{{ job.type }}"
+                                            data-salary-min="{{ job.salary_min }}"
+                                            data-salary-max="{{ job.salary_max }}"
+                                            data-url="{{ job.url }}"
+                                            data-date="{{ job.date_posted }}"
+                                            data-requirements='{{ job.requirements | tojson }}'>
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger delete-job-btn"
+                                            data-job-id="{{ job.id }}"
+                                            data-job-title="{{ job.title }}">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">No jobs added yet. Click "Add New Job" to get started.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Job Modal -->
+<div class="modal fade" id="addJobModal" tabindex="-1" aria-labelledby="addJobModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addJobModalLabel"><i class="bi bi-briefcase-fill me-2"></i>Add New Job</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="jobForm">
+                    <div class="mb-3">
+                        <label class="form-label">Company <span class="text-danger">*</span></label>
+                        <select class="form-select" name="company_id" id="companySelect" required>
+                            <option value="">Select a company...</option>
+                            {% for company in companies %}
+                                <option value="{{ company.id }}" data-website="{{ company.website }}">{{ company.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Job Title <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="job_title" maxlength="100" required>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Job Type <span class="text-danger">*</span></label>
+                            <select class="form-select" name="job_type" required>
+                                <option value="">Select type...</option>
+                                <option>Full-time</option>
+                                <option>Part-time</option>
+                                <option>Contract</option>
+                                <option>Internship</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Date Posted <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" name="date_posted" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Min Salary <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control salary-input" name="salary_min" step="1000" min="0" placeholder="0" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Max Salary <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control salary-input" name="salary_max" step="1000" min="0" placeholder="0" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Job URL <span class="text-danger">*</span></label>
+                        <input type="url" class="form-control" name="job_url" id="jobUrlInput" placeholder="https://example.com/job" required>
+                        <small class="text-muted" id="urlHint" style="display:none;">Please complete the job posting URL</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Requirements / Skills</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="addSkillInput" placeholder="e.g. Python">
+                            <select class="form-select" id="addSkillLevel" style="max-width:160px">
+                                <option>Required</option>
+                                <option>Nice-to-have</option>
+                                <option>1+ years</option>
+                                <option>3+ years</option>
+                                <option>5+ years</option>
+                            </select>
+                            <button type="button" class="btn btn-outline-secondary" id="addSkillBtn"><i class="bi bi-plus-lg"></i></button>
+                        </div>
+                        <div id="addSkillTags" class="mt-2 d-flex flex-wrap gap-1"></div>
+                    </div>
+                    <div id="formError" class="alert alert-danger d-none"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="submitJob"><i class="bi bi-check-lg me-1"></i>Save Job</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Job Modal -->
+<div class="modal fade" id="editJobModal" tabindex="-1" aria-labelledby="editJobModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editJobModalLabel"><i class="bi bi-pencil-square me-2"></i>Edit Job</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editJobForm">
+                    <div class="mb-3">
+                        <label class="form-label">Company <span class="text-danger">*</span></label>
+                        <select class="form-select" name="company_id" required>
+                            <option value="">Select a company...</option>
+                            {% for company in companies %}
+                                <option value="{{ company.id }}">{{ company.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Job Title <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="job_title" maxlength="100" required>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Job Type <span class="text-danger">*</span></label>
+                            <select class="form-select" name="job_type" required>
+                                <option value="">Select type...</option>
+                                <option>Full-time</option>
+                                <option>Part-time</option>
+                                <option>Contract</option>
+                                <option>Internship</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Date Posted <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" name="date_posted" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Min Salary <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control salary-input" name="salary_min" step="1000" min="0" placeholder="0" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Max Salary <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control salary-input" name="salary_max" step="1000" min="0" placeholder="0" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Job URL <span class="text-danger">*</span></label>
+                        <input type="url" class="form-control" name="job_url" placeholder="https://example.com/job" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Requirements / Skills</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="editSkillInput" placeholder="e.g. Python">
+                            <select class="form-select" id="editSkillLevel" style="max-width:160px">
+                                <option>Required</option>
+                                <option>Nice-to-have</option>
+                                <option>1+ years</option>
+                                <option>3+ years</option>
+                                <option>5+ years</option>
+                            </select>
+                            <button type="button" class="btn btn-outline-secondary" id="editSkillBtn"><i class="bi bi-plus-lg"></i></button>
+                        </div>
+                        <div id="editSkillTags" class="mt-2 d-flex flex-wrap gap-1"></div>
+                    </div>
+                    <div id="editFormError" class="alert alert-danger d-none"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="submitEditJob"><i class="bi bi-check-lg me-1"></i>Update Job</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Job Modal -->
+<div class="modal fade" id="deleteJobModal" tabindex="-1" aria-labelledby="deleteJobModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger" id="deleteJobModalLabel"><i class="bi bi-exclamation-triangle me-2"></i>Delete Job</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="jobNameToDelete"></strong>?</p>
+                <p class="text-muted small">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteJob"><i class="bi bi-trash me-1"></i>Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+    // ---- Tag input helper ----
+    function setupTagInput(inputId, levelId, btnId, containerId) {
+        const input = document.getElementById(inputId);
+        const level = document.getElementById(levelId);
+        const btn = document.getElementById(btnId);
+        const container = document.getElementById(containerId);
+        let tags = [];
+
+        function renderTags() {
+            container.innerHTML = '';
+            tags.forEach((t, i) => {
+                const badge = document.createElement('span');
+                const cls = t.level === 'Required' ? 'bg-danger' : t.level === 'Nice-to-have' ? 'bg-secondary' : 'bg-primary';
+                badge.className = `badge ${cls} d-flex align-items-center gap-1`;
+                badge.innerHTML = `${t.skill} <small>(${t.level})</small> <i class="bi bi-x-lg" style="cursor:pointer" data-idx="${i}"></i>`;
+                badge.querySelector('i').addEventListener('click', function() {
+                    tags.splice(parseInt(this.getAttribute('data-idx')), 1);
+                    renderTags();
+                });
+                container.appendChild(badge);
+            });
+        }
+
+        function addTag() {
+            const skill = input.value.trim();
+            if (!skill) return;
+            if (tags.some(t => t.skill.toLowerCase() === skill.toLowerCase())) {
+                input.value = '';
+                return;
+            }
+            tags.push({ skill: skill, level: level.value });
+            input.value = '';
+            renderTags();
+        }
+
+        btn.addEventListener('click', addTag);
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); addTag(); }
+        });
+
+        return {
+            getTags: () => [...tags],
+            setTags: (t) => { tags = t || []; renderTags(); }
+        };
+    }
+
+    const addTags = setupTagInput('addSkillInput', 'addSkillLevel', 'addSkillBtn', 'addSkillTags');
+    const editTags = setupTagInput('editSkillInput', 'editSkillLevel', 'editSkillBtn', 'editSkillTags');
+
+    // Auto-populate job URL from company website
+    const companySelect = document.getElementById('companySelect');
+    const jobUrlInput = document.getElementById('jobUrlInput');
+    const urlHint = document.getElementById('urlHint');
+    let baseUrl = '';
+
+    companySelect.addEventListener('change', function() {
+        const selected = this.options[this.selectedIndex];
+        const website = selected.getAttribute('data-website') || '';
+        if (website) {
+            baseUrl = website.replace(/\/+$/, '') + '/';
+            jobUrlInput.value = baseUrl;
+            urlHint.style.display = 'block';
+        } else {
+            baseUrl = '';
+            jobUrlInput.value = '';
+            urlHint.style.display = 'none';
+        }
+        jobUrlInput.setCustomValidity('');
+    });
+
+    const submitBtn = document.getElementById('submitJob');
+    console.log('Submit button found:', !!submitBtn);
+    
+    if (!submitBtn) {
+        console.error('Submit button with id="submitJob" not found');
+        return;
+    }
+    
+    submitBtn.addEventListener('click', async function() {
+        console.log('✓ Submit button clicked');
+        
+        const form = document.getElementById('jobForm');
+        const errorDiv = document.getElementById('formError');
+        
+        if (!form) {
+            console.error('Form not found');
+            return;
+        }
+        
+        console.log('Form found, validating...');
+        
+        // Clear previous errors
+        errorDiv.classList.add('d-none');
+        errorDiv.textContent = '';
+        
+        // Reject if URL is still just the auto-populated base
+        if (baseUrl && jobUrlInput.value.replace(/\/+$/, '') === baseUrl.replace(/\/+$/, '')) {
+            jobUrlInput.setCustomValidity('Please enter the full job posting URL, not just the company website.');
+            form.reportValidity();
+            return;
+        }
+        jobUrlInput.setCustomValidity('');
+
+        if (!form.checkValidity()) {
+            console.log('✓ Form validation failed');
+            form.reportValidity();
+            return;
+        }
+        
+        console.log('✓ Form validated successfully');
+        
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData);
+        
+        console.log('Form data:', data);
+        
+        // Convert types
+        data.company_id = parseInt(data.company_id);
+        data.salary_min = parseFloat(data.salary_min);
+        data.salary_max = parseFloat(data.salary_max);
+        data.requirements = addTags.getTags();
+        
+        console.log('Converted data:', data);
+        
+        try {
+            console.log('➤ Sending POST to /api/jobs');
+            const response = await fetch('/api/jobs', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            
+            console.log('Response status:', response.status);
+            
+            const result = await response.json();
+            console.log('Response:', result);
+            
+            if (response.ok) {
+                console.log('✓ Success! Job saved');
+                showAlert('Job added successfully!', 'success');
+                form.reset();
+                addTags.setTags([]);
+                bootstrap.Modal.getInstance(document.getElementById('addJobModal')).hide();
+                location.reload(); // Refresh to show the new job
+            } else {
+                console.log('✗ API error:', result.error);
+                errorDiv.textContent = result.error || 'Failed to add job';
+                errorDiv.classList.remove('d-none');
+            }
+        } catch (error) {
+            console.error('✗ Network/fetch error:', error);
+            errorDiv.textContent = 'Error: ' + error.message;
+            errorDiv.classList.remove('d-none');
+        }
+    });
+
+    // ---- Edit Job ----
+    let currentEditJobId = null;
+
+    document.querySelectorAll('.edit-job-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            currentEditJobId = this.getAttribute('data-job-id');
+            const form = document.getElementById('editJobForm');
+            form.querySelector('[name="company_id"]').value = this.getAttribute('data-company-id');
+            form.querySelector('[name="job_title"]').value = this.getAttribute('data-title');
+            form.querySelector('[name="job_type"]').value = this.getAttribute('data-type');
+            form.querySelector('[name="salary_min"]').value = parseFloat(this.getAttribute('data-salary-min'));
+            form.querySelector('[name="salary_max"]').value = parseFloat(this.getAttribute('data-salary-max'));
+            form.querySelector('[name="job_url"]').value = this.getAttribute('data-url');
+            // Format date as YYYY-MM-DD for input[type=date]
+            const rawDate = this.getAttribute('data-date');
+            const d = new Date(rawDate);
+            if (!isNaN(d)) {
+                form.querySelector('[name="date_posted"]').value = d.toISOString().split('T')[0];
+            } else {
+                form.querySelector('[name="date_posted"]').value = rawDate;
+            }
+            // Load requirements tags
+            try {
+                editTags.setTags(JSON.parse(this.getAttribute('data-requirements') || '[]'));
+            } catch(e) { editTags.setTags([]); }
+            document.getElementById('editFormError').classList.add('d-none');
+            new bootstrap.Modal(document.getElementById('editJobModal')).show();
+        });
+    });
+
+    document.getElementById('submitEditJob').addEventListener('click', async function() {
+        const form = document.getElementById('editJobForm');
+        const errorDiv = document.getElementById('editFormError');
+        errorDiv.classList.add('d-none');
+
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData);
+        data.company_id = parseInt(data.company_id);
+        data.salary_min = parseFloat(data.salary_min);
+        data.salary_max = parseFloat(data.salary_max);
+        data.requirements = editTags.getTags();
+
+        try {
+            const response = await fetch(`/api/jobs/${currentEditJobId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+
+            if (response.ok) {
+                showAlert('Job updated successfully!', 'success');
+                bootstrap.Modal.getInstance(document.getElementById('editJobModal')).hide();
+                location.reload();
+            } else {
+                errorDiv.textContent = result.error || 'Failed to update job';
+                errorDiv.classList.remove('d-none');
+            }
+        } catch (error) {
+            errorDiv.textContent = 'Error: ' + error.message;
+            errorDiv.classList.remove('d-none');
+        }
+    });
+
+    // ---- Delete Job ----
+    let currentDeleteJobId = null;
+
+    document.querySelectorAll('.delete-job-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            currentDeleteJobId = this.getAttribute('data-job-id');
+            document.getElementById('jobNameToDelete').textContent = this.getAttribute('data-job-title');
+            new bootstrap.Modal(document.getElementById('deleteJobModal')).show();
+        });
+    });
+
+    document.getElementById('confirmDeleteJob').addEventListener('click', async function() {
+        try {
+            const response = await fetch(`/api/jobs/${currentDeleteJobId}`, {
+                method: 'DELETE',
+                headers: {'Content-Type': 'application/json'}
+            });
+            const result = await response.json();
+
+            if (response.ok) {
+                showAlert('Job deleted successfully!', 'success');
+                bootstrap.Modal.getInstance(document.getElementById('deleteJobModal')).hide();
+                location.reload();
+            } else {
+                showAlert(result.error || 'Error deleting job', 'danger');
+            }
+        } catch (error) {
+            showAlert('An error occurred. Please try again.', 'danger');
+        }
+    });
+});
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+    document.getElementById('alertContainer').appendChild(alertDiv);
+    setTimeout(() => alertDiv.remove(), 5000);
+}
+
+// ---- Salary accelerating spinner: $1K tap, $5K on hold ----
+document.querySelectorAll('.salary-input').forEach(input => {
+    let holdTimer = null;
+    input.addEventListener('mousedown', function() {
+        this.step = 1000;
+        holdTimer = setTimeout(() => { this.step = 5000; }, 500);
+    });
+    input.addEventListener('mouseup', function() { clearTimeout(holdTimer); });
+    input.addEventListener('mouseleave', function() { clearTimeout(holdTimer); });
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+            this.step = e.shiftKey ? 5000 : 1000;
+        }
+    });
+});
+</script>
+{% endblock %}

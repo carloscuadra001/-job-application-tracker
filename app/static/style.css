@@ -1,0 +1,228 @@
+/* ============================================
+   Cool Tone Professional Theme
+   Custom overrides on top of Bootstrap 5
+   ============================================ */
+
+:root {
+    --primary-blue: #1e3c72;
+    --secondary-blue: #2a5298;
+    --accent-teal: #00a8cc;
+    --light-bg: #f0f4f8;
+    --slate-gray: #3d5a80;
+    --dark-text: #2c3e50;
+    --border-color: #d4dce6;
+    --success: #16a085;
+    --warning: #f39c12;
+    --danger: #e74c3c;
+}
+
+/* ============================================
+   GLOBAL
+   ============================================ */
+body {
+    background-color: var(--light-bg);
+    color: var(--dark-text);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* ============================================
+   NAVBAR OVERRIDES
+   ============================================ */
+.navbar {
+    background: linear-gradient(135deg, var(--primary-blue) 0%, var(--secondary-blue) 100%) !important;
+    box-shadow: 0 4px 12px rgba(30, 60, 114, 0.2);
+}
+
+.navbar-nav .nav-link:hover,
+.navbar-nav .nav-link.active {
+    color: var(--accent-teal) !important;
+}
+
+/* ============================================
+   TYPOGRAPHY OVERRIDES
+   ============================================ */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--primary-blue);
+    font-weight: 600;
+}
+
+h1 {
+    display: flex;
+    align-items: center;
+}
+
+/* ============================================
+   CARD OVERRIDES
+   ============================================ */
+.card {
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(30, 60, 114, 0.15);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border-top: 4px solid var(--accent-teal);
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(30, 60, 114, 0.25);
+}
+
+.card-header {
+    background: linear-gradient(135deg, var(--light-bg) 0%, #e8f0f8 100%);
+    border-bottom: 2px solid var(--border-color);
+    color: var(--primary-blue);
+    font-weight: 600;
+}
+
+.card-title {
+    color: var(--primary-blue);
+    font-weight: 600;
+}
+
+/* ============================================
+   BUTTON OVERRIDES
+   ============================================ */
+.btn-primary {
+    background-color: var(--primary-blue);
+    border-color: var(--primary-blue);
+}
+
+.btn-primary:hover {
+    background-color: var(--secondary-blue);
+    border-color: var(--secondary-blue);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(30, 60, 114, 0.3);
+}
+
+.btn-secondary {
+    background-color: var(--slate-gray);
+    border-color: var(--slate-gray);
+}
+
+.btn:focus {
+    outline: 2px solid var(--accent-teal);
+    outline-offset: 2px;
+}
+
+/* ============================================
+   FORM OVERRIDES
+   ============================================ */
+.form-label {
+    color: var(--primary-blue);
+    font-weight: 500;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--accent-teal);
+    box-shadow: 0 0 0 0.2rem rgba(0, 168, 204, 0.15);
+}
+
+/* ============================================
+   MODAL OVERRIDES
+   ============================================ */
+.modal-title {
+    color: var(--primary-blue);
+    font-weight: 600;
+}
+
+.modal-content {
+    border-radius: 8px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+/* ============================================
+   BADGE OVERRIDES
+   ============================================ */
+.badge.bg-info {
+    background-color: var(--accent-teal) !important;
+}
+
+/* ============================================
+   ALERT OVERRIDES
+   ============================================ */
+.alert {
+    border: none;
+    border-left: 4px solid;
+    border-radius: 8px;
+}
+
+.alert-success { border-left-color: var(--success); }
+.alert-warning { border-left-color: var(--warning); }
+.alert-danger { border-left-color: var(--danger); }
+
+/* ============================================
+   TABLE OVERRIDES
+   ============================================ */
+.table thead {
+    background-color: var(--primary-blue);
+    color: white;
+}
+
+.table tbody tr:hover {
+    background-color: var(--light-bg);
+}
+
+/* ============================================
+   DASHBOARD STATS
+   ============================================ */
+.stat-box {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    border-top: 4px solid var(--accent-teal);
+    box-shadow: 0 4px 15px rgba(30, 60, 114, 0.15);
+    transition: transform 0.3s ease;
+}
+
+.stat-box:hover {
+    transform: translateY(-4px);
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary-blue);
+    margin: 10px 0;
+}
+
+.stat-label {
+    color: var(--slate-gray);
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+/* ============================================
+   FOOTER
+   ============================================ */
+footer {
+    background-color: white;
+    border-top: 1px solid var(--border-color);
+    margin-top: 2rem;
+}
+
+/* ============================================
+   CUSTOM UTILITIES
+   ============================================ */
+.hover-shadow:hover {
+    box-shadow: 0 8px 25px rgba(30, 60, 114, 0.25) !important;
+}
+
+.link-primary {
+    color: var(--primary-blue);
+    transition: color 0.3s ease;
+}
+
+.link-primary:hover {
+    color: var(--accent-teal);
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 768px) {
+    h1 {
+        font-size: 1.75rem;
+    }
+}

@@ -1,0 +1,310 @@
+{% extends 'base.html' %}
+{% block title %}Job Match{% endblock %}
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1><i class="bi bi-search-heart me-2"></i>Job Match</h1>
+        <p class="text-muted">Find the best matching jobs based on your skills and preferences.</p>
+    </div>
+</div>
+
+<div id="alertContainer"></div>
+
+<div class="row mb-4">
+    <div class="col-12 col-lg-8 offset-lg-2 d-flex flex-wrap gap-2">
+        <a href="/contacts" class="btn btn-outline-secondary flex-fill">
+            <i class="bi bi-arrow-left me-1"></i>Contacts
+        </a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12 col-lg-8 offset-lg-2">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Match Criteria</h5>
+            </div>
+            <div class="card-body">
+                <form id="matchForm">
+                    <div class="mb-3">
+                        <label class="form-label">Your Skills <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="skillInput" placeholder="e.g. Python">
+                            <select class="form-select" id="skillLevel" style="max-width:160px">
+                                <option>1+ years</option>
+                                <option>3+ years</option>
+                                <option>5+ years</option>
+                                <option>7+ years</option>
+                                <option>10+ years</option>
+                            </select>
+                            <button type="button" class="btn btn-outline-secondary" id="addSkillBtn"><i class="bi bi-plus-lg"></i></button>
+                        </div>
+                        <div id="skillTags" class="mt-2 d-flex flex-wrap gap-1"></div>
+                        <small class="text-muted">Type a skill, select experience, and press Enter or click + to add</small>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Desired Salary</label>
+                            <input type="number" class="form-control salary-input" name="desired_salary" placeholder="0" step="1000" min="0">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Job Type</label>
+                            <select class="form-select" name="job_type">
+                                <option value="">Any</option>
+                                <option>Full-time</option>
+                                <option>Part-time</option>
+                                <option>Contract</option>
+                                <option>Internship</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Industry</label>
+                            <input type="text" class="form-control" name="industry" placeholder="e.g., Technology, Finance">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-search me-1"></i>Find Matches
+                    </button>
+                    <div id="formError" class="alert alert-danger d-none mt-2"></div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row" id="resultsContainer" style="display: none;">
+    <div class="col-12 col-lg-8 offset-lg-2">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-1">Matching Results</h5>
+                <small id="resultsSubtitle"></small>
+            </div>
+            <div class="card-body" id="resultsBody">
+                <!-- Results will be populated here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.match-item {
+    border-left: 4px solid var(--accent-teal);
+    padding: 15px;
+    margin-bottom: 15px;
+    background: #f8fafb;
+    border-radius: 4px;
+}
+
+.match-percent {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--primary-blue);
+}
+
+.skill-badge {
+    display: inline-block;
+    background: var(--success);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-right: 6px;
+    margin-bottom: 4px;
+    font-size: 0.85rem;
+}
+
+.skill-badge.missing {
+    background: #f39c12;
+}
+
+.progress-circle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 1.25rem;
+    margin-right: 15px;
+}
+
+.progress-100 { background: #d4edda; color: var(--success); }
+.progress-75 { background: #fff3cd; color: #f39c12; }
+.progress-50 { background: #f8d7da; color: var(--danger); }
+</style>
+
+<script>
+// ---- Tag input for skills ----
+(function() {
+    const input = document.getElementById('skillInput');
+    const level = document.getElementById('skillLevel');
+    const btn = document.getElementById('addSkillBtn');
+    const container = document.getElementById('skillTags');
+    const skills = [];
+
+    function renderTags() {
+        container.innerHTML = '';
+        skills.forEach((s, i) => {
+            const badge = document.createElement('span');
+            badge.className = 'badge bg-primary d-flex align-items-center gap-1';
+            badge.innerHTML = `${s.skill} <small>(${s.level})</small> <i class="bi bi-x-lg" style="cursor:pointer" data-idx="${i}"></i>`;
+            badge.querySelector('i').addEventListener('click', function() {
+                skills.splice(parseInt(this.getAttribute('data-idx')), 1);
+                renderTags();
+            });
+            container.appendChild(badge);
+        });
+    }
+
+    function addSkill() {
+        const val = input.value.trim();
+        if (!val) return;
+        if (!skills.some(s => s.skill.toLowerCase() === val.toLowerCase())) {
+            skills.push({ skill: val, level: level.value });
+        }
+        input.value = '';
+        renderTags();
+    }
+
+    btn.addEventListener('click', addSkill);
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); addSkill(); }
+    });
+
+    window._getMatchSkills = () => skills;
+})();
+
+document.getElementById('matchForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const form = this;
+    const errorDiv = document.getElementById('formError');
+    errorDiv.classList.add('d-none');
+
+    const skills = window._getMatchSkills();
+    if (!skills.length) {
+        errorDiv.textContent = 'Please add at least one skill.';
+        errorDiv.classList.remove('d-none');
+        return;
+    }
+    
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+    data.skills = skills;
+    
+    try {
+        const response = await fetch('/api/job-match', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            displayResults(result);
+        } else {
+            errorDiv.textContent = result.error;
+            errorDiv.classList.remove('d-none');
+        }
+    } catch (error) {
+        errorDiv.textContent = 'An error occurred. Please try again.';
+        errorDiv.classList.remove('d-none');
+    }
+});
+
+function displayResults(data) {
+    const resultsContainer = document.getElementById('resultsContainer');
+    const resultsBody = document.getElementById('resultsBody');
+    const resultsSubtitle = document.getElementById('resultsSubtitle');
+    
+    // Show skills
+    const skillsHtml = data.user_skills.map(s => 
+        `<span class="skill-badge">${s.skill}${s.level ? ' <small>(' + s.level + ')</small>' : ''}</span>`
+    ).join('');
+    
+    resultsSubtitle.innerHTML = `Your Skills: ${skillsHtml}`;
+    
+    // Build results
+    let html = '';
+    
+    if (data.total_matches === 0) {
+        html = '<p class="text-muted text-center py-4">No matching jobs found with your criteria.</p>';
+    } else {
+        html = `<p class="mb-4"><strong>Found ${data.total_matches} matching job${data.total_matches !== 1 ? 's' : ''}:</strong></p>`;
+        
+        data.matches.forEach((job, index) => {
+            const circleClass = job.match_percent >= 75 ? 'progress-100' : 
+                               job.match_percent >= 50 ? 'progress-75' : 'progress-50';
+            
+            let skillsDisplay = '';
+            if (job.matching_skills.length > 0) {
+                skillsDisplay += '<div class="mt-2"><strong>Matched Skills:</strong><br>' +
+                    job.matching_skills.map(s => {
+                        let label = s.skill;
+                        if (s.user_level) label += ` <small>(You: ${s.user_level}`;
+                        if (s.user_level && s.job_level) label += ` / Req: ${s.job_level}`;
+                        if (s.user_level) label += `)</small>`;
+                        return `<span class="skill-badge">${label}</span>`;
+                    }).join('') + 
+                    '</div>';
+            }
+            if (job.missing_skills.length > 0) {
+                skillsDisplay += '<div class="mt-2"><strong class="text-warning">Missing Skills:</strong><br>' +
+                    job.missing_skills.map(s => {
+                        let label = s.skill;
+                        if (s.job_level) label += ` <small>(${s.job_level})</small>`;
+                        return `<span class="skill-badge missing">${label}</span>`;
+                    }).join('') + 
+                    '</div>';
+            }
+            
+            const salaryRange = job.salary_max > 0 ? 
+                `$${job.salary_min.toLocaleString()} - $${job.salary_max.toLocaleString()}` : 'Not specified';
+            
+            html += `
+                <div class="match-item">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h6 class="mb-1"><strong>${index + 1}. ${job.job_title}</strong></h6>
+                            <p class="text-muted mb-0">${job.company_name} • ${job.industry}</p>
+                        </div>
+                        <div class="text-end">
+                            <div class="progress-circle ${circleClass}">${job.match_percent}%</div>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <small><strong>Type:</strong> ${job.job_type}</small>
+                        <small><strong>Salary:</strong> ${salaryRange}</small>
+                    </div>
+                    <small class="text-muted">Matching ${job.matching_skills.length}/${job.total_required} required skills</small>
+                    ${skillsDisplay}
+                </div>
+            `;
+        });
+    }
+    
+    resultsBody.innerHTML = html;
+    resultsContainer.style.display = 'block';
+    resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ---- Salary accelerating spinner: $1K tap, $5K on hold ----
+document.querySelectorAll('.salary-input').forEach(input => {
+    let holdTimer = null;
+    input.addEventListener('mousedown', function() {
+        this.step = 1000;
+        holdTimer = setTimeout(() => { this.step = 5000; }, 500);
+    });
+    input.addEventListener('mouseup', function() { clearTimeout(holdTimer); });
+    input.addEventListener('mouseleave', function() { clearTimeout(holdTimer); });
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+            this.step = e.shiftKey ? 5000 : 1000;
+        }
+    });
+});
+</script>
+{% endblock %}

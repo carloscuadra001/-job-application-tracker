@@ -1,0 +1,538 @@
+{% extends 'base.html' %}
+{% block title %}Applications{% endblock %}
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1><i class="bi bi-file-earmark-text me-2"></i>Applications</h1>
+        <p class="text-muted">Track the status of your job applications.</p>
+    </div>
+</div>
+
+<div id="alertContainer"></div>
+
+<div class="row mb-4">
+    <div class="col-12 d-flex flex-wrap gap-2">
+        <a href="/jobs" class="btn btn-outline-secondary flex-fill">
+            <i class="bi bi-arrow-left me-1"></i>Jobs
+        </a>
+        <button class="btn btn-primary flex-fill" data-bs-toggle="modal" data-bs-target="#newApplicationModal">
+            <i class="bi bi-plus-lg me-1"></i>Log New Application
+        </button>
+        <a href="/contacts" class="btn btn-outline-secondary flex-fill">
+            Contacts<i class="bi bi-arrow-right ms-1"></i>
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Application List ({{ applications|length }})</h5>
+            </div>
+            <div class="card-body">
+                {% if applications %}
+                <div class="row g-4" id="appCards">
+                    {% for app in applications %}
+                    <div class="col-12 col-md-6 col-lg-4 app-card" data-status="{{ app.status or '' }}">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body d-flex flex-column">
+                                <h5 class="card-title text-primary">{{ app.job_title }}</h5>
+                                <div class="mb-2">
+                                    <small class="text-muted d-block"><strong>Company:</strong> {{ app.company }}</small>
+                                </div>
+                                <div class="mb-2">
+                                    {% if app.status == 'Offer' %}
+                                    <span class="badge bg-success">{{ app.status }}</span>
+                                    {% elif app.status == 'Rejected' %}
+                                    <span class="badge bg-danger">{{ app.status }}</span>
+                                    {% elif app.status == 'Interview' %}
+                                    <span class="badge bg-warning text-dark">{{ app.status }}</span>
+                                    {% elif app.status == 'Withdrawn' %}
+                                    <span class="badge bg-secondary">{{ app.status }}</span>
+                                    {% elif app.status %}
+                                    <span class="badge bg-info">{{ app.status }}</span>
+                                    {% else %}
+                                    <span class="badge bg-light text-dark">No Status</span>
+                                    {% endif %}
+                                </div>
+                                <div class="mb-1">
+                                    <small class="text-muted d-block"><strong>Applied:</strong> {{ app.date }}</small>
+                                </div>
+                                <div class="mb-1">
+                                    <small class="text-muted d-block"><strong>Resume:</strong> {{ app.resume_version }}</small>
+                                </div>
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">
+                                        <i class="bi bi-{{ 'check-circle text-success' if app.cover_letter else 'x-circle text-muted' }} me-1"></i>Cover Letter
+                                    </small>
+                                </div>
+                                {% if app.interviews %}
+                                <div class="mb-2">
+                                    <small class="text-muted d-block interviews-count"><strong>Interviews:</strong> {{ app.interviews|length }} round{{ 's' if app.interviews|length != 1 }}</small>
+                                </div>
+                                {% else %}
+                                <div class="mb-2">
+                                    <small class="text-muted d-block interviews-count"></small>
+                                </div>
+                                {% endif %}
+                                <div class="mt-auto pt-2 border-top d-flex gap-2">
+                                    <button class="btn btn-sm btn-outline-info interview-btn"
+                                            data-app-id="{{ app.id }}"
+                                            data-app-title="{{ app.job_title }} at {{ app.company }}"
+                                            data-interviews='{{ app.interviews | tojson }}'>
+                                        <i class="bi bi-camera-video me-1"></i>Interviews
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary edit-app-btn"
+                                            data-app-id="{{ app.id }}"
+                                            data-job-id="{{ app.job_id }}"
+                                            data-date="{{ app.date }}"
+                                            data-status="{{ app.status or '' }}"
+                                            data-resume="{{ app.resume_version }}"
+                                            data-cover="{{ app.cover_letter }}">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger delete-app-btn"
+                                            data-app-id="{{ app.id }}"
+                                            data-app-title="{{ app.job_title }}">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">No applications logged yet. Click "Log New Application" to get started.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Application Modal -->
+<div class="modal fade" id="newApplicationModal" tabindex="-1" aria-labelledby="newApplicationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="newApplicationModalLabel"><i class="bi bi-journal-plus me-2"></i>Log Application</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="applicationForm">
+                    <div class="mb-3">
+                        <label class="form-label">Job <span class="text-danger">*</span></label>
+                        <select class="form-select" name="job_id" required>
+                            <option value="">Select a job...</option>
+                            {% for job in jobs %}
+                                <option value="{{ job.id }}">{{ job.title }} - {{ job.company }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Application Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" name="application_date" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" name="status">
+                                <option value="">Select status...</option>
+                                <option>Applied</option>
+                                <option>Screening</option>
+                                <option>Interview</option>
+                                <option>Offer</option>
+                                <option>Rejected</option>
+                                <option>Withdrawn</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Resume Version <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="resume_version" required>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="coverLetter" name="cover_letter_sent">
+                        <label class="form-check-label" for="coverLetter">Cover letter sent</label>
+                    </div>
+                    <div id="formError" class="alert alert-danger d-none"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="submitApplication"><i class="bi bi-check-lg me-1"></i>Log Application</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Application Modal -->
+<div class="modal fade" id="editAppModal" tabindex="-1" aria-labelledby="editAppModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editAppModalLabel"><i class="bi bi-pencil-square me-2"></i>Edit Application</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editAppForm">
+                    <div class="mb-3">
+                        <label class="form-label">Job <span class="text-danger">*</span></label>
+                        <select class="form-select" name="job_id" required>
+                            <option value="">Select a job...</option>
+                            {% for job in jobs %}
+                                <option value="{{ job.id }}">{{ job.title }} - {{ job.company }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Application Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" name="application_date" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" name="status">
+                                <option value="">Select status...</option>
+                                <option>Applied</option>
+                                <option>Screening</option>
+                                <option>Interview</option>
+                                <option>Offer</option>
+                                <option>Rejected</option>
+                                <option>Withdrawn</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Resume Version <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="resume_version" required>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="editCoverLetter" name="cover_letter_sent">
+                        <label class="form-check-label" for="editCoverLetter">Cover letter sent</label>
+                    </div>
+                    <div id="editFormError" class="alert alert-danger d-none"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="submitEditApp"><i class="bi bi-check-lg me-1"></i>Update Application</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Application Modal -->
+<div class="modal fade" id="deleteAppModal" tabindex="-1" aria-labelledby="deleteAppModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger" id="deleteAppModalLabel"><i class="bi bi-exclamation-triangle me-2"></i>Delete Application</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the application for <strong id="appNameToDelete"></strong>?</p>
+                <p class="text-muted small">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteApp"><i class="bi bi-trash me-1"></i>Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Interview Management Modal -->
+<div class="modal fade" id="interviewModal" tabindex="-1" aria-labelledby="interviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="interviewModalLabel"><i class="bi bi-camera-video me-2"></i>Interview Rounds</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6 id="interviewAppTitle" class="text-muted mb-3"></h6>
+                <div id="interviewList" class="mb-4"></div>
+                <hr>
+                <h6>Add Interview Round</h6>
+                <form id="addInterviewForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Round Type <span class="text-danger">*</span></label>
+                            <select class="form-select" name="round" required>
+                                <option value="">Select type...</option>
+                                <option>Phone Screen</option>
+                                <option>Technical</option>
+                                <option>Behavioral</option>
+                                <option>Onsite</option>
+                                <option>Final</option>
+                                <option>Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" name="date" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Interviewer</label>
+                            <input type="text" class="form-control" name="interviewer" placeholder="Name">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Outcome</label>
+                            <select class="form-select" name="outcome">
+                                <option value="Pending">Pending</option>
+                                <option>Pass</option>
+                                <option>Fail</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" name="notes" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-outline-primary" id="addInterviewRound"><i class="bi bi-plus-lg me-1"></i>Add Round</button>
+                <button type="button" class="btn btn-primary" id="saveCloseInterviews"><i class="bi bi-check-lg me-1"></i>Save &amp; Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+    // ---- Add Application ----
+    document.getElementById('submitApplication').addEventListener('click', async function() {
+        const form = document.getElementById('applicationForm');
+        const errorDiv = document.getElementById('formError');
+        errorDiv.classList.add('d-none');
+
+        if (!form.checkValidity()) { form.reportValidity(); return; }
+
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData);
+        data.job_id = parseInt(data.job_id);
+        data.cover_letter_sent = data.cover_letter_sent ? 1 : 0;
+
+        try {
+            const response = await fetch('/api/applications', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            if (response.ok) {
+                showAlert('Application logged successfully!', 'success');
+                form.reset();
+                bootstrap.Modal.getInstance(document.getElementById('newApplicationModal')).hide();
+                window.location.href = '/applications';
+            } else {
+                errorDiv.textContent = result.error || 'Failed to log application';
+                errorDiv.classList.remove('d-none');
+            }
+        } catch (error) {
+            errorDiv.textContent = 'Error: ' + error.message;
+            errorDiv.classList.remove('d-none');
+        }
+    });
+
+    // ---- Edit Application ----
+    let currentEditAppId = null;
+
+    document.querySelectorAll('.edit-app-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            currentEditAppId = this.getAttribute('data-app-id');
+            const form = document.getElementById('editAppForm');
+            form.querySelector('[name="job_id"]').value = this.getAttribute('data-job-id');
+            const rawDate = this.getAttribute('data-date');
+            const d = new Date(rawDate);
+            form.querySelector('[name="application_date"]').value = !isNaN(d) ? d.toISOString().split('T')[0] : rawDate;
+            form.querySelector('[name="status"]').value = this.getAttribute('data-status');
+            form.querySelector('[name="resume_version"]').value = this.getAttribute('data-resume');
+            document.getElementById('editCoverLetter').checked = this.getAttribute('data-cover') === '1';
+            document.getElementById('editFormError').classList.add('d-none');
+            new bootstrap.Modal(document.getElementById('editAppModal')).show();
+        });
+    });
+
+    document.getElementById('submitEditApp').addEventListener('click', async function() {
+        const form = document.getElementById('editAppForm');
+        const errorDiv = document.getElementById('editFormError');
+        errorDiv.classList.add('d-none');
+
+        if (!form.checkValidity()) { form.reportValidity(); return; }
+
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData);
+        data.job_id = parseInt(data.job_id);
+        data.cover_letter_sent = document.getElementById('editCoverLetter').checked ? 1 : 0;
+
+        try {
+            const response = await fetch(`/api/applications/${currentEditAppId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            if (response.ok) {
+                showAlert('Application updated successfully!', 'success');
+                bootstrap.Modal.getInstance(document.getElementById('editAppModal')).hide();
+                window.location.href = '/applications';
+            } else {
+                errorDiv.textContent = result.error || 'Failed to update application';
+                errorDiv.classList.remove('d-none');
+            }
+        } catch (error) {
+            errorDiv.textContent = 'Error: ' + error.message;
+            errorDiv.classList.remove('d-none');
+        }
+    });
+
+    // ---- Delete Application ----
+    let currentDeleteAppId = null;
+
+    document.querySelectorAll('.delete-app-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            currentDeleteAppId = this.getAttribute('data-app-id');
+            document.getElementById('appNameToDelete').textContent = this.getAttribute('data-app-title');
+            new bootstrap.Modal(document.getElementById('deleteAppModal')).show();
+        });
+    });
+
+    document.getElementById('confirmDeleteApp').addEventListener('click', async function() {
+        try {
+            const response = await fetch(`/api/applications/${currentDeleteAppId}`, {
+                method: 'DELETE',
+                headers: {'Content-Type': 'application/json'}
+            });
+            const result = await response.json();
+            if (response.ok) {
+                showAlert('Application deleted successfully!', 'success');
+                bootstrap.Modal.getInstance(document.getElementById('deleteAppModal')).hide();
+                window.location.href = '/applications';
+            } else {
+                showAlert(result.error || 'Error deleting application', 'danger');
+            }
+        } catch (error) {
+            showAlert('An error occurred. Please try again.', 'danger');
+        }
+    });
+
+    // ---- Interview Management ----
+    let currentInterviewAppId = null;
+    let currentInterviews = [];
+
+    function renderInterviews() {
+        const container = document.getElementById('interviewList');
+        if (!currentInterviews.length) {
+            container.innerHTML = '<p class="text-muted">No interview rounds recorded yet.</p>';
+            return;
+        }
+        container.innerHTML = currentInterviews.map((iv, i) => {
+            const outcomeClass = iv.outcome === 'Pass' ? 'text-success' : iv.outcome === 'Fail' ? 'text-danger' : 'text-warning';
+            return `
+                <div class="card mb-2 border-start border-3 ${iv.outcome === 'Pass' ? 'border-success' : iv.outcome === 'Fail' ? 'border-danger' : 'border-warning'}">
+                    <div class="card-body py-2 px-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>${iv.round || 'Round'}</strong>
+                                <span class="badge ${outcomeClass} bg-opacity-10 ${outcomeClass} ms-2">${iv.outcome || 'Pending'}</span>
+                                <br><small class="text-muted">${iv.date || ''}${iv.interviewer ? ' &middot; ' + iv.interviewer : ''}</small>
+                                ${iv.notes ? '<br><small>' + iv.notes + '</small>' : ''}
+                            </div>
+                            <button class="btn btn-sm btn-outline-danger delete-interview-btn" data-idx="${i}" title="Remove round">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+        }).join('');
+
+        container.querySelectorAll('.delete-interview-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const idx = parseInt(this.getAttribute('data-idx'));
+                currentInterviews.splice(idx, 1);
+                renderInterviews();
+            });
+        });
+    }
+
+    async function saveInterviews() {
+        try {
+            await fetch(`/api/applications/${currentInterviewAppId}/interviews`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ interviews: currentInterviews })
+            });
+        } catch (e) {
+            showAlert('Error saving interview data', 'danger');
+        }
+    }
+
+    document.querySelectorAll('.interview-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            currentInterviewAppId = this.getAttribute('data-app-id');
+            document.getElementById('interviewAppTitle').textContent = this.getAttribute('data-app-title');
+            try {
+                currentInterviews = JSON.parse(this.getAttribute('data-interviews') || '[]');
+            } catch(e) { currentInterviews = []; }
+            renderInterviews();
+            document.getElementById('addInterviewForm').reset();
+            new bootstrap.Modal(document.getElementById('interviewModal')).show();
+        });
+    });
+
+    document.getElementById('addInterviewRound').addEventListener('click', async function() {
+        const form = document.getElementById('addInterviewForm');
+        if (!form.checkValidity()) { form.reportValidity(); return; }
+
+        const formData = new FormData(form);
+        const round = Object.fromEntries(formData);
+        currentInterviews.push(round);
+        renderInterviews();
+        form.reset();
+        form.querySelector('[name="outcome"]').value = 'Pending';
+    });
+
+    document.getElementById('saveCloseInterviews').addEventListener('click', async function() {
+        await saveInterviews();
+        // Update the card's data-interviews attribute so reopening reflects changes
+        const btn = document.querySelector(`.interview-btn[data-app-id="${currentInterviewAppId}"]`);
+        if (btn) {
+            btn.setAttribute('data-interviews', JSON.stringify(currentInterviews));
+            // Update interview count on card
+            const countEl = btn.closest('.card-body').querySelector('.interviews-count');
+            if (countEl) {
+                countEl.textContent = currentInterviews.length
+                    ? `Interviews: ${currentInterviews.length} round${currentInterviews.length !== 1 ? 's' : ''}`
+                    : '';
+            }
+        }
+        bootstrap.Modal.getInstance(document.getElementById('interviewModal')).hide();
+        showAlert('Interview rounds saved successfully.', 'success');
+    });
+
+    // Auto-open edit modal if ?edit=<id> is in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const editId = urlParams.get('edit');
+    if (editId) {
+        const editBtn = document.querySelector(`.edit-app-btn[data-app-id="${editId}"]`);
+        if (editBtn) editBtn.click();
+    }
+});
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+    document.getElementById('alertContainer').appendChild(alertDiv);
+    setTimeout(() => alertDiv.remove(), 5000);
+}
+</script>
+{% endblock %}

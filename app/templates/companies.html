@@ -1,0 +1,376 @@
+{% extends 'base.html' %}
+{% block title %}Companies{% endblock %}
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1><i class="bi bi-building me-2"></i>Companies</h1>
+        <p class="text-muted">Manage the companies you're interested in.</p>
+    </div>
+</div>
+
+<div id="alertContainer"></div>
+
+<div class="row mb-4">
+    <div class="col-12 d-flex flex-wrap gap-2">
+        <a href="/" class="btn btn-outline-secondary flex-fill">
+            <i class="bi bi-arrow-left me-1"></i>Dashboard
+        </a>
+        <button class="btn btn-primary flex-fill" data-bs-toggle="modal" data-bs-target="#addCompanyModal">
+            <i class="bi bi-plus-lg me-1"></i>Add New Company
+        </button>
+        <a href="/jobs" class="btn btn-outline-secondary flex-fill">
+            Jobs<i class="bi bi-arrow-right ms-1"></i>
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Company List</h5>
+            </div>
+            <div class="card-body" id="companiesListBody">
+                <p class="text-muted text-center py-4">Loading companies...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Company Modal -->
+<div class="modal fade" id="addCompanyModal" tabindex="-1" aria-labelledby="addCompanyModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addCompanyModalLabel"><i class="bi bi-building-add me-2"></i>Add New Company</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="companyForm">
+                    <div class="mb-3">
+                        <label class="form-label">Company Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="company_name" maxlength="100" required>
+                        <small class="text-muted">Max 100 characters</small>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Industry <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="industry" maxlength="50" required>
+                            <small class="text-muted">Max 50 characters</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Website <span class="text-danger">*</span></label>
+                            <input type="url" class="form-control" name="website" placeholder="https://example.com" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">City <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="city" maxlength="50" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">State <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="state" maxlength="50" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes <span class="text-danger">*</span></label>
+                        <textarea class="form-control" name="notes" rows="3" required></textarea>
+                    </div>
+                    <div id="formError" class="alert alert-danger d-none"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="submitCompany"><i class="bi bi-check-lg me-1"></i>Save Company</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Company Modal -->
+<div class="modal fade" id="editCompanyModal" tabindex="-1" aria-labelledby="editCompanyModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editCompanyModalLabel"><i class="bi bi-pencil-square me-2"></i>Edit Company</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editCompanyForm">
+                    <div class="mb-3">
+                        <label class="form-label">Company Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="company_name" maxlength="100" required>
+                        <small class="text-muted">Max 100 characters</small>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Industry <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="industry" maxlength="50" required>
+                            <small class="text-muted">Max 50 characters</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Website <span class="text-danger">*</span></label>
+                            <input type="url" class="form-control" name="website" placeholder="https://example.com" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">City <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="city" maxlength="50" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">State <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="state" maxlength="50" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes <span class="text-danger">*</span></label>
+                        <textarea class="form-control" name="notes" rows="3" required></textarea>
+                    </div>
+                    <div id="editFormError" class="alert alert-danger d-none"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="submitEditCompany"><i class="bi bi-check-lg me-1"></i>Update Company</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteCompanyModal" tabindex="-1" aria-labelledby="deleteCompanyModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger" id="deleteCompanyModalLabel"><i class="bi bi-exclamation-triangle me-2"></i>Delete Company</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="companyNameToDelete"></strong>?</p>
+                <p class="text-muted small">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteCompany"><i class="bi bi-trash me-1"></i>Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Global variable to store the current editing/deleting company ID
+let currentCompanyId = null;
+let allCompanies = [];
+
+// Load companies when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadCompanies();
+});
+
+async function loadCompanies() {
+    try {
+        const response = await fetch('/api/companies');
+        const result = await response.json();
+        
+        if (result.success && result.companies.length > 0) {
+            allCompanies = result.companies;
+            displayCompanies(result.companies);
+        } else {
+            document.getElementById('companiesListBody').innerHTML = 
+                '<p class="text-muted text-center py-4">No companies added yet. Click "Add New Company" to get started.</p>';
+        }
+    } catch (error) {
+        console.error('Error loading companies:', error);
+        document.getElementById('companiesListBody').innerHTML = 
+            '<p class="text-danger">Error loading companies</p>';
+    }
+}
+
+function displayCompanies(companies) {
+    let html = '<div class="row g-4">';
+    
+    companies.forEach(company => {
+        const location = `${company.city}, ${company.state}`;
+        const website = company.website ? `<a href="${company.website}" target="_blank" class="link-primary text-decoration-none">${company.website}</a>` : '<span class="text-muted">—</span>';
+        
+        html += `
+            <div class="col-12 col-md-6 col-lg-4">
+                <div class="card h-100 border-0 shadow-sm hover-shadow transition">
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title text-primary">${company.name}</h5>
+                        <div class="mb-3">
+                            <span class="badge bg-info">${company.industry}</span>
+                        </div>
+                        <div class="mb-2">
+                            <small class="text-muted d-block">
+                                <i class="bi bi-geo-alt me-1"></i>${location}
+                            </small>
+                        </div>
+                        <div class="mb-3">
+                            <small class="text-muted d-block">
+                                <i class="bi bi-link-45deg me-1"></i>${website}
+                            </small>
+                        </div>
+                        <div class="pt-2 border-top flex-grow-1">
+                            <small class="text-muted"><strong>Notes:</strong></small>
+                            <p class="card-text text-muted small mt-2">${company.notes}</p>
+                        </div>
+                        <div class="d-flex gap-2 mt-3">
+                            <button class="btn btn-sm btn-outline-secondary edit-btn" data-company-id="${company.id}">
+                                <i class="bi bi-pencil-square"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger delete-btn" data-company-id="${company.id}" data-company-name="${company.name}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    document.getElementById('companiesListBody').innerHTML = html;
+    
+    // Attach event listeners to new buttons
+    attachCompanyEventListeners();
+}
+
+function attachCompanyEventListeners() {
+    // Edit button handlers
+    document.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const companyId = this.getAttribute('data-company-id');
+            const company = allCompanies.find(c => c.id == companyId);
+            
+            if (company) {
+                currentCompanyId = company.id;
+                document.querySelector('#editCompanyForm input[name="company_name"]').value = company.name;
+                document.querySelector('#editCompanyForm input[name="industry"]').value = company.industry;
+                document.querySelector('#editCompanyForm input[name="website"]').value = company.website;
+                document.querySelector('#editCompanyForm input[name="city"]').value = company.city;
+                document.querySelector('#editCompanyForm input[name="state"]').value = company.state;
+                document.querySelector('#editCompanyForm textarea[name="notes"]').value = company.notes;
+                document.getElementById('editFormError').classList.add('d-none');
+                new bootstrap.Modal(document.getElementById('editCompanyModal')).show();
+            }
+        });
+    });
+    
+    // Delete button handlers
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            currentCompanyId = this.getAttribute('data-company-id');
+            const companyName = this.getAttribute('data-company-name');
+            document.getElementById('companyNameToDelete').textContent = companyName;
+            new bootstrap.Modal(document.getElementById('deleteCompanyModal')).show();
+        });
+    });
+}
+
+// Add Company handler
+document.getElementById('submitCompany').addEventListener('click', async function() {
+    const form = document.getElementById('companyForm');
+    const errorDiv = document.getElementById('formError');
+    
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+    
+    try {
+        const response = await fetch('/api/companies', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showAlert('Company added successfully!', 'success');
+            form.reset();
+            bootstrap.Modal.getInstance(document.getElementById('addCompanyModal')).hide();
+            loadCompanies();
+        } else {
+            errorDiv.textContent = result.error;
+            errorDiv.classList.remove('d-none');
+        }
+    } catch (error) {
+        errorDiv.textContent = 'An error occurred. Please try again.';
+        errorDiv.classList.remove('d-none');
+    }
+});
+
+// Edit Company handler
+document.getElementById('submitEditCompany').addEventListener('click', async function() {
+    const form = document.getElementById('editCompanyForm');
+    const errorDiv = document.getElementById('editFormError');
+    
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+    
+    try {
+        const response = await fetch(`/api/companies/${currentCompanyId}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showAlert('Company updated successfully!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('editCompanyModal')).hide();
+            loadCompanies();
+        } else {
+            errorDiv.textContent = result.error;
+            errorDiv.classList.remove('d-none');
+        }
+    } catch (error) {
+        errorDiv.textContent = 'An error occurred. Please try again.';
+        errorDiv.classList.remove('d-none');
+    }
+});
+
+// Delete Company handler
+document.getElementById('confirmDeleteCompany').addEventListener('click', async function() {
+    try {
+        const response = await fetch(`/api/companies/${currentCompanyId}`, {
+            method: 'DELETE',
+            headers: {'Content-Type': 'application/json'}
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showAlert('Company deleted successfully!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('deleteCompanyModal')).hide();
+            loadCompanies();
+        } else {
+            showAlert(result.error || 'Error deleting company', 'danger');
+        }
+    } catch (error) {
+        showAlert('An error occurred. Please try again.', 'danger');
+    }
+});
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+    document.getElementById('alertContainer').appendChild(alertDiv);
+    setTimeout(() => alertDiv.remove(), 5000);
+}
+</script>
+{% endblock %}

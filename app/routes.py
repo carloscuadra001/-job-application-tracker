@@ -1,5 +1,5 @@
 from app import app, mysql
-from flask import render_template, request, jsonify, redirect, url_for, flash
+from flask import render_template, request, jsonify
 import re
 import json
 from datetime import datetime
@@ -70,6 +70,44 @@ def dashboard():
         LIMIT 5
     """)
     recent_apps = cursor.fetchall()
+
+    # Companies list (names only)
+    cursor.execute("SELECT company_id, company_name FROM companies ORDER BY company_name")
+    companies_list = cursor.fetchall()
+
+    # Applications list (not Rejected or Withdrawn)
+    cursor.execute("""
+        SELECT a.application_id, j.job_title, c.company_name
+        FROM applications a
+        JOIN jobs j ON a.job_id = j.job_id
+        JOIN companies c ON j.company_id = c.company_id
+        WHERE a.status NOT IN ('Rejected', 'Withdrawn')
+        ORDER BY j.job_title
+    """)
+    apps_list = cursor.fetchall()
+
+    # Interview list (status Interview or has interview data)
+    cursor.execute("""
+        SELECT a.application_id, j.job_title, c.company_name
+        FROM applications a
+        JOIN jobs j ON a.job_id = j.job_id
+        JOIN companies c ON j.company_id = c.company_id
+        WHERE a.status = 'Interview' OR (a.interview_data IS NOT NULL AND a.interview_data != '[]' AND a.interview_data != '')
+        ORDER BY j.job_title
+    """)
+    interviews_list = cursor.fetchall()
+
+    # Offers list
+    cursor.execute("""
+        SELECT a.application_id, j.job_title, c.company_name
+        FROM applications a
+        JOIN jobs j ON a.job_id = j.job_id
+        JOIN companies c ON j.company_id = c.company_id
+        WHERE a.status = 'Offer'
+        ORDER BY j.job_title
+    """)
+    offers_list = cursor.fetchall()
+
     cursor.close()
     
     return render_template('dashboard.html',
@@ -77,7 +115,11 @@ def dashboard():
         total_companies=total_companies,
         in_interviews=in_interviews,
         job_offers=job_offers,
-        recent_apps=recent_apps
+        recent_apps=recent_apps,
+        companies_list=companies_list,
+        apps_list=apps_list,
+        interviews_list=interviews_list,
+        offers_list=offers_list
     )
 
 # Companies routes
@@ -166,9 +208,10 @@ def add_company():
             data['notes'].strip()
         ))
         mysql.connection.commit()
+        new_id = cursor.lastrowid
         cursor.close()
         
-        return jsonify({'success': True, 'message': 'Company added successfully'}), 201
+        return jsonify({'success': True, 'message': 'Company added successfully', 'id': new_id}), 201
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -212,6 +255,25 @@ def update_company(company_id):
         cursor.close()
         
         return jsonify({'success': True, 'message': 'Company updated successfully'}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/companies/<int:company_id>/jobs')
+def get_company_jobs(company_id):
+    """Get all jobs for a specific company"""
+    try:
+        cursor = mysql.connection.cursor()
+        cursor.execute("""
+            SELECT job_id, job_title, job_type, salary_min, salary_max, job_url, date_posted
+            FROM jobs WHERE company_id = %s ORDER BY date_posted DESC
+        """, (company_id,))
+        rows = cursor.fetchall()
+        cursor.close()
+        jobs = [{'id': r[0], 'title': r[1], 'type': r[2],
+                 'salary_min': float(r[3]) if r[3] else 0,
+                 'salary_max': float(r[4]) if r[4] else 0,
+                 'url': r[5], 'date_posted': str(r[6]) if r[6] else ''} for r in rows]
+        return jsonify({'success': True, 'jobs': jobs})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -276,27 +338,6 @@ def jobs():
     except Exception as e:
         print(f"Error fetching data: {e}")
         return render_template('jobs.html', companies=[], jobs=[])
-
-@app.route('/api/jobs', methods=['GET'])
-def get_jobs():
-    """Get all jobs for dropdowns"""
-    try:
-        cursor = mysql.connection.cursor()
-        cursor.execute("""
-            SELECT j.job_id, j.job_title, c.company_name 
-            FROM jobs j 
-            JOIN companies c ON j.company_id = c.company_id 
-            ORDER BY j.job_title
-        """)
-        jobs = cursor.fetchall()
-        cursor.close()
-        
-        return jsonify({
-            'success': True,
-            'jobs': [{'id': j[0], 'title': j[1], 'company': j[2]} for j in jobs]
-        }), 200
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/jobs', methods=['POST'])
 def add_job():
@@ -366,9 +407,10 @@ def add_job():
             req_json
         ))
         mysql.connection.commit()
+        new_id = cursor.lastrowid
         cursor.close()
         
-        return jsonify({'success': True, 'message': 'Job added successfully'}), 201
+        return jsonify({'success': True, 'message': 'Job added successfully', 'id': new_id}), 201
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -465,7 +507,8 @@ def applications():
 
         cursor.execute("""
             SELECT a.application_id, a.application_date, a.status, a.resume_version,
-                   a.cover_letter_sent, a.interview_data, j.job_title, c.company_name, a.job_id
+                   a.cover_letter_sent, a.interview_data, j.job_title, c.company_name, a.job_id,
+                   j.requirements, c.company_id
             FROM applications a
             JOIN jobs j ON a.job_id = j.job_id
             JOIN companies c ON j.company_id = c.company_id
@@ -480,13 +523,75 @@ def applications():
                 try:
                     idata = json.loads(idata)
                 except:
-                    idata = []
+                    idata = None
+            # Handle both old format (plain array) and new format (object)
+            if isinstance(idata, list):
+                interviews = idata
+                skills_on_resume = []
+            elif isinstance(idata, dict):
+                interviews = idata.get('interviews', [])
+                skills_on_resume = idata.get('skills_on_resume', [])
+            else:
+                interviews = []
+                skills_on_resume = []
+
+            # Parse job requirements for match calculation
+            reqs = a[9]
+            if reqs and isinstance(reqs, str):
+                try:
+                    reqs = json.loads(reqs)
+                except:
+                    reqs = []
+            job_req_skills = {}
+            if isinstance(reqs, list):
+                for r in reqs:
+                    if isinstance(r, dict) and r.get('skill'):
+                        job_req_skills[r['skill'].strip().lower()] = r.get('level', '')
+                    elif isinstance(r, str) and r.strip():
+                        job_req_skills[r.strip().lower()] = ''
+
+            # Build resume skills dict {name_lower: level}
+            resume_skills = {}
+            for s in skills_on_resume:
+                if isinstance(s, dict) and s.get('skill'):
+                    resume_skills[s['skill'].strip().lower()] = s.get('level', '')
+                elif isinstance(s, str) and s.strip():
+                    resume_skills[s.strip().lower()] = ''
+
+            if job_req_skills and resume_skills:
+                import re as _re
+                def _parse_yrs(level_str):
+                    if not level_str:
+                        return 0
+                    m = _re.search(r'(\d+)', str(level_str))
+                    return int(m.group(1)) if m else 0
+
+                total_score = 0
+                for req_skill, req_level in job_req_skills.items():
+                    if req_skill in resume_skills:
+                        user_yrs = _parse_yrs(resume_skills[req_skill])
+                        job_yrs = _parse_yrs(req_level)
+                        if job_yrs > 0 and user_yrs > 0:
+                            total_score += min(user_yrs / job_yrs, 1.0)
+                        else:
+                            total_score += 1.0
+                match_pct = int((total_score / len(job_req_skills)) * 100)
+            else:
+                match_pct = None
+
             apps_list.append({
                 'id': a[0], 'date': a[1], 'status': a[2],
                 'resume_version': a[3], 'cover_letter': a[4],
-                'interviews': idata or [], 'job_title': a[6],
-                'company': a[7], 'job_id': a[8]
+                'interviews': interviews, 'skills_on_resume': skills_on_resume,
+                'job_title': a[6], 'company': a[7], 'job_id': a[8],
+                'match_pct': match_pct, 'company_id': a[10]
             })
+
+        # Sort by latest interview date (most recent first), apps with no interviews last
+        def _latest_interview_date(app):
+            dates = [iv.get('date', '') for iv in app['interviews'] if iv.get('date')]
+            return max(dates) if dates else ''
+        apps_list.sort(key=_latest_interview_date, reverse=True)
 
         return render_template('applications.html', jobs=jobs_list, applications=apps_list)
     except Exception as e:
@@ -527,7 +632,10 @@ def add_application():
                 return jsonify({'success': False, 'error': 'Invalid application status'}), 400
         
         cover_letter = 1 if data.get('cover_letter_sent') else 0
-        
+
+        skills_on_resume = data.get('skills_on_resume', [])
+        interview_json = json.dumps({'interviews': [], 'skills_on_resume': skills_on_resume})
+
         cursor.execute("""
             INSERT INTO applications (job_id, application_date, status, resume_version, cover_letter_sent, interview_data)
             VALUES (%s, %s, %s, %s, %s, %s)
@@ -537,12 +645,13 @@ def add_application():
             data.get('status'),
             data['resume_version'].strip(),
             cover_letter,
-            '[]'
+            interview_json
         ))
         mysql.connection.commit()
+        new_id = cursor.lastrowid
         cursor.close()
         
-        return jsonify({'success': True, 'message': 'Application logged successfully'}), 201
+        return jsonify({'success': True, 'message': 'Application logged successfully', 'id': new_id}), 201
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -577,9 +686,24 @@ def update_application(app_id):
 
         cover_letter = 1 if data.get('cover_letter_sent') else 0
 
+        # Preserve existing interviews, update skills_on_resume
+        cursor.execute("SELECT interview_data FROM applications WHERE application_id = %s", (app_id,))
+        row = cursor.fetchone()
+        existing = {}
+        if row and row[0]:
+            try:
+                parsed = json.loads(row[0]) if isinstance(row[0], str) else row[0]
+                if isinstance(parsed, dict):
+                    existing = parsed
+                elif isinstance(parsed, list):
+                    existing = {'interviews': parsed}
+            except:
+                pass
+        existing['skills_on_resume'] = data.get('skills_on_resume', existing.get('skills_on_resume', []))
+
         cursor.execute("""
             UPDATE applications SET job_id=%s, application_date=%s, status=%s,
-                   resume_version=%s, cover_letter_sent=%s
+                   resume_version=%s, cover_letter_sent=%s, interview_data=%s
             WHERE application_id=%s
         """, (
             data['job_id'],
@@ -587,6 +711,7 @@ def update_application(app_id):
             data.get('status'),
             data['resume_version'].strip(),
             cover_letter,
+            json.dumps(existing),
             app_id
         ))
         mysql.connection.commit()
@@ -627,10 +752,28 @@ def update_interviews(app_id):
             if r.get('outcome') and r['outcome'] not in valid_outcomes:
                 return jsonify({'success': False, 'error': f'Invalid outcome: {r["outcome"]}'}), 400
 
+        # Preserve skills_on_resume when saving interviews
         cursor = mysql.connection.cursor()
+        cursor.execute("SELECT interview_data FROM applications WHERE application_id = %s", (app_id,))
+        row = cursor.fetchone()
+        existing_skills = []
+        if row and row[0]:
+            try:
+                parsed = json.loads(row[0]) if isinstance(row[0], str) else row[0]
+                if isinstance(parsed, dict):
+                    existing_skills = parsed.get('skills_on_resume', [])
+            except:
+                pass
+
+        interview_obj = json.dumps({'interviews': interviews, 'skills_on_resume': existing_skills})
         cursor.execute("""
             UPDATE applications SET interview_data = %s WHERE application_id = %s
-        """, (json.dumps(interviews), app_id))
+        """, (interview_obj, app_id))
+
+        # Auto-update status to Offer if Final round passed
+        if any(r.get('round') == 'Final' and r.get('outcome') == 'Pass' for r in interviews):
+            cursor.execute("UPDATE applications SET status = 'Offer' WHERE application_id = %s", (app_id,))
+
         mysql.connection.commit()
         cursor.close()
 
@@ -639,6 +782,24 @@ def update_interviews(app_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # Contacts routes
+@app.route('/api/contacts/company/<int:company_id>')
+def get_contacts_by_company(company_id):
+    """Get all contacts for a specific company"""
+    try:
+        cursor = mysql.connection.cursor()
+        cursor.execute("""
+            SELECT contact_id, contact_name, title
+            FROM contacts
+            WHERE company_id = %s
+            ORDER BY contact_name
+        """, (company_id,))
+        rows = cursor.fetchall()
+        cursor.close()
+        contacts_list = [{'id': r[0], 'name': r[1], 'title': r[2] or ''} for r in rows]
+        return jsonify({'success': True, 'contacts': contacts_list})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/contacts')
 def contacts():
     try:
@@ -712,9 +873,10 @@ def add_contact():
             data.get('notes', '').strip() if data.get('notes') else None
         ))
         mysql.connection.commit()
+        new_id = cursor.lastrowid
         cursor.close()
         
-        return jsonify({'success': True, 'message': 'Contact added successfully'}), 201
+        return jsonify({'success': True, 'message': 'Contact added successfully', 'id': new_id}), 201
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -784,6 +946,41 @@ def delete_contact(contact_id):
 def job_match():
     return render_template('job_match.html')
 
+@app.route('/api/job-skills')
+def job_skills():
+    """Return unique skills from all job requirements"""
+    try:
+        cursor = mysql.connection.cursor()
+        cursor.execute("SELECT requirements FROM jobs WHERE requirements IS NOT NULL")
+        rows = cursor.fetchall()
+        cursor.close()
+        skills = set()
+        for (req,) in rows:
+            if req:
+                try:
+                    data = json.loads(req) if isinstance(req, str) else req
+                    if isinstance(data, list):
+                        for item in data:
+                            if isinstance(item, dict) and 'skill' in item:
+                                skills.add(item['skill'].strip())
+                except:
+                    pass
+        return jsonify({'success': True, 'skills': sorted(skills, key=str.lower)})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/industries')
+def industries():
+    """Return unique industries from companies"""
+    try:
+        cursor = mysql.connection.cursor()
+        cursor.execute("SELECT DISTINCT industry FROM companies WHERE industry IS NOT NULL AND industry != '' ORDER BY industry")
+        rows = cursor.fetchall()
+        cursor.close()
+        return jsonify({'success': True, 'industries': [r[0] for r in rows]})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/job-match', methods=['POST'])
 def job_match_search():
     """Match user skills against job requirements"""
@@ -825,12 +1022,11 @@ def job_match_search():
         """
         params = []
         
-        # Apply filters - desired salary must fall between job's min and max
+        # Apply filters - desired salary must be <= job's max salary
         if desired_salary:
             try:
-                query += " AND j.salary_min <= %s AND j.salary_max >= %s"
+                query += " AND j.salary_max >= %s"
                 sal = float(desired_salary)
-                params.append(sal)
                 params.append(sal)
             except:
                 pass

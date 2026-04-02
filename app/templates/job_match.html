@@ -27,9 +27,11 @@
             <div class="card-body">
                 <form id="matchForm">
                     <div class="mb-3">
-                        <label class="form-label">Your Skills <span class="text-danger">*</span></label>
+                        <label class="form-label">Your Matching Skills <span class="text-danger">*</span></label>
                         <div class="input-group">
-                            <input type="text" class="form-control" id="skillInput" placeholder="e.g. Python">
+                            <select class="form-select" id="skillInput">
+                                <option value="">-- Select a skill --</option>
+                            </select>
                             <select class="form-select" id="skillLevel" style="max-width:160px">
                                 <option>1+ years</option>
                                 <option>3+ years</option>
@@ -40,7 +42,7 @@
                             <button type="button" class="btn btn-outline-secondary" id="addSkillBtn"><i class="bi bi-plus-lg"></i></button>
                         </div>
                         <div id="skillTags" class="mt-2 d-flex flex-wrap gap-1"></div>
-                        <small class="text-muted">Type a skill, select experience, and press Enter or click + to add</small>
+                        <small class="text-muted">Select a skill, choose experience level, then click + to add</small>
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-6">
@@ -61,7 +63,9 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Industry</label>
-                            <input type="text" class="form-control" name="industry" placeholder="e.g., Technology, Finance">
+                            <select class="form-select" name="industry" id="industrySelect">
+                                <option value="">Any</option>
+                            </select>
                         </div>
                     </div>
                     <button type="submit" class="btn btn-primary w-100">
@@ -79,7 +83,7 @@
         <div class="card">
             <div class="card-header bg-primary text-white">
                 <h5 class="mb-1">Matching Results</h5>
-                <small id="resultsSubtitle"></small>
+                <small id="resultsSubtitle" class="d-block" style="color: #e0e0e0;"></small>
             </div>
             <div class="card-body" id="resultsBody">
                 <!-- Results will be populated here -->
@@ -136,6 +140,40 @@
 </style>
 
 <script>
+// ---- Load industries from companies ----
+(async function loadIndustries() {
+    try {
+        const res = await fetch('/api/industries');
+        const data = await res.json();
+        if (data.success) {
+            const sel = document.getElementById('industrySelect');
+            data.industries.forEach(ind => {
+                const opt = document.createElement('option');
+                opt.value = ind;
+                opt.textContent = ind;
+                sel.appendChild(opt);
+            });
+        }
+    } catch(e) { console.error('Failed to load industries', e); }
+})();
+
+// ---- Load available skills from jobs ----
+(async function loadJobSkills() {
+    try {
+        const res = await fetch('/api/job-skills');
+        const data = await res.json();
+        if (data.success) {
+            const sel = document.getElementById('skillInput');
+            data.skills.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s;
+                opt.textContent = s;
+                sel.appendChild(opt);
+            });
+        }
+    } catch(e) { console.error('Failed to load job skills', e); }
+})();
+
 // ---- Tag input for skills ----
 (function() {
     const input = document.getElementById('skillInput');
@@ -169,9 +207,6 @@
     }
 
     btn.addEventListener('click', addSkill);
-    input.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') { e.preventDefault(); addSkill(); }
-    });
 
     window._getMatchSkills = () => skills;
 })();
@@ -225,7 +260,7 @@ function displayResults(data) {
         `<span class="skill-badge">${s.skill}${s.level ? ' <small>(' + s.level + ')</small>' : ''}</span>`
     ).join('');
     
-    resultsSubtitle.innerHTML = `Your Skills: ${skillsHtml}`;
+    resultsSubtitle.innerHTML = `<span style="color:#cfe2ff;">Your Matching Skills:</span> ${skillsHtml}`;
     
     // Build results
     let html = '';
@@ -281,6 +316,9 @@ function displayResults(data) {
                     </div>
                     <small class="text-muted">Matching ${job.matching_skills.length}/${job.total_required} required skills</small>
                     ${skillsDisplay}
+                    <div class="mt-3">
+                        <a href="/applications?new_job=${job.job_id}" class="btn btn-sm btn-primary"><i class="bi bi-journal-plus me-1"></i>Log Application</a>
+                    </div>
                 </div>
             `;
         });

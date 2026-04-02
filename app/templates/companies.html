@@ -163,6 +163,7 @@
 // Global variable to store the current editing/deleting company ID
 let currentCompanyId = null;
 let allCompanies = [];
+let pendingScrollToId = new URLSearchParams(window.location.search).get('scrollTo');
 
 // Load companies when page loads
 document.addEventListener('DOMContentLoaded', function() {
@@ -177,6 +178,12 @@ async function loadCompanies() {
         if (result.success && result.companies.length > 0) {
             allCompanies = result.companies;
             displayCompanies(result.companies);
+            // Auto-open edit modal if ?edit=<id> is in URL
+            const editId = new URLSearchParams(window.location.search).get('edit');
+            if (editId) {
+                const editBtn = document.querySelector(`.edit-btn[data-company-id="${editId}"]`);
+                if (editBtn) editBtn.click();
+            }
         } else {
             document.getElementById('companiesListBody').innerHTML = 
                 '<p class="text-muted text-center py-4">No companies added yet. Click "Add New Company" to get started.</p>';
@@ -196,9 +203,10 @@ function displayCompanies(companies) {
         const website = company.website ? `<a href="${company.website}" target="_blank" class="link-primary text-decoration-none">${company.website}</a>` : '<span class="text-muted">—</span>';
         
         html += `
-            <div class="col-12 col-md-6 col-lg-4">
+            <div class="col-12 col-md-6 col-lg-4" id="company-card-${company.id}">
                 <div class="card h-100 border-0 shadow-sm hover-shadow transition">
-                    <div class="card-body d-flex flex-column">
+                    <div class="card-body d-flex flex-column" style="cursor:pointer"
+                         data-bs-toggle="collapse" data-bs-target="#company-jobs-${company.id}">
                         <h5 class="card-title text-primary">${company.name}</h5>
                         <div class="mb-3">
                             <span class="badge bg-info">${company.industry}</span>
@@ -217,13 +225,21 @@ function displayCompanies(companies) {
                             <small class="text-muted"><strong>Notes:</strong></small>
                             <p class="card-text text-muted small mt-2">${company.notes}</p>
                         </div>
-                        <div class="d-flex gap-2 mt-3">
+                        <div class="d-flex gap-2 mt-3" onclick="event.stopPropagation()">
+                            <a href="/jobs?new_job_company=${company.id}" class="btn btn-sm btn-outline-success">
+                                <i class="bi bi-plus-circle me-1"></i>Add Job
+                            </a>
                             <button class="btn btn-sm btn-outline-secondary edit-btn" data-company-id="${company.id}">
                                 <i class="bi bi-pencil-square"></i>
                             </button>
                             <button class="btn btn-sm btn-outline-danger delete-btn" data-company-id="${company.id}" data-company-name="${company.name}">
                                 <i class="bi bi-trash"></i>
                             </button>
+                        </div>
+                    </div>
+                    <div class="collapse" id="company-jobs-${company.id}">
+                        <div class="card-footer bg-light" id="company-jobs-body-${company.id}">
+                            <small class="text-muted">Loading jobs...</small>
                         </div>
                     </div>
                 </div>
@@ -236,6 +252,48 @@ function displayCompanies(companies) {
     
     // Attach event listeners to new buttons
     attachCompanyEventListeners();
+
+    // Lazy-load jobs when accordion opens
+    document.querySelectorAll('.collapse[id^="company-jobs-"]').forEach(el => {
+            let loaded = false;
+            el.addEventListener('show.bs.collapse', async function() {
+                if (loaded) return;
+                loaded = true;
+                const companyId = this.id.replace('company-jobs-', '');
+                const body = document.getElementById('company-jobs-body-' + companyId);
+                try {
+                    const resp = await fetch(`/api/companies/${companyId}/jobs`);
+                    const result = await resp.json();
+                    if (result.success && result.jobs.length > 0) {
+                        body.innerHTML = '<ul class="list-group list-group-flush">' +
+                            result.jobs.map(j => `
+                                <li class="list-group-item bg-light d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>${j.title}</strong>
+                                        <small class="text-muted ms-2">${j.type}</small>
+                                        <br><small class="text-muted">$${j.salary_min.toLocaleString()} &ndash; $${j.salary_max.toLocaleString()}</small>
+                                    </div>
+                                    <a href="/jobs?scrollTo=${j.id}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </li>
+                            `).join('') + '</ul>';
+                    } else {
+                        body.innerHTML = '<small class="text-muted">No jobs saved for this company.</small>';
+                    }
+                } catch (e) {
+                    body.innerHTML = '<small class="text-danger">Error loading jobs.</small>';
+                }
+            });
+    });
+
+    // Scroll to card if pending
+    if (pendingScrollToId) {
+        const el = document.getElementById('company-card-' + pendingScrollToId);
+        if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
+        pendingScrollToId = null;
+        window.history.replaceState({}, '', '/companies');
+    }
 }
 
 function attachCompanyEventListeners() {
@@ -296,6 +354,7 @@ document.getElementById('submitCompany').addEventListener('click', async functio
             showAlert('Company added successfully!', 'success');
             form.reset();
             bootstrap.Modal.getInstance(document.getElementById('addCompanyModal')).hide();
+            pendingScrollToId = result.id;
             loadCompanies();
         } else {
             errorDiv.textContent = result.error;
@@ -332,6 +391,7 @@ document.getElementById('submitEditCompany').addEventListener('click', async fun
         if (response.ok) {
             showAlert('Company updated successfully!', 'success');
             bootstrap.Modal.getInstance(document.getElementById('editCompanyModal')).hide();
+            pendingScrollToId = currentCompanyId;
             loadCompanies();
         } else {
             errorDiv.textContent = result.error;

@@ -34,7 +34,7 @@
                 {% if applications %}
                 <div class="row g-4" id="appCards">
                     {% for app in applications %}
-                    <div class="col-12 col-md-6 col-lg-4 app-card" data-status="{{ app.status or '' }}">
+                    <div class="col-12 col-md-6 col-lg-4 app-card" id="app-card-{{ app.id }}" data-status="{{ app.status or '' }}">
                         <div class="card h-100 border-0 shadow-sm">
                             <div class="card-body d-flex flex-column">
                                 <h5 class="card-title text-primary">{{ app.job_title }}</h5>
@@ -67,6 +67,28 @@
                                         <i class="bi bi-{{ 'check-circle text-success' if app.cover_letter else 'x-circle text-muted' }} me-1"></i>Cover Letter
                                     </small>
                                 </div>
+                                {% if app.skills_on_resume %}
+                                <div class="mb-2">
+                                    <small class="d-block"><strong>Resume Skills:</strong></small>
+                                    <div class="d-flex flex-wrap gap-1 mt-1">
+                                        {% for skill in app.skills_on_resume %}
+                                        {% if skill is mapping %}
+                                        <span class="badge bg-secondary">{{ skill.skill }} <small>({{ skill.level }})</small></span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ skill }}</span>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                                {% if app.match_pct is not none %}
+                                <div class="mb-2">
+                                    <small class="d-block"><strong>Job Match:</strong></small>
+                                    <div class="progress mt-1" style="height: 20px;">
+                                        <div class="progress-bar {% if app.match_pct >= 75 %}bg-success{% elif app.match_pct >= 50 %}bg-warning{% else %}bg-danger{% endif %}" role="progressbar" style="width: {{ app.match_pct }}%" aria-valuenow="{{ app.match_pct }}" aria-valuemin="0" aria-valuemax="100">{{ app.match_pct }}%</div>
+                                    </div>
+                                </div>
+                                {% endif %}
                                 {% if app.interviews %}
                                 <div class="mb-2">
                                     <small class="text-muted d-block interviews-count"><strong>Interviews:</strong> {{ app.interviews|length }} round{{ 's' if app.interviews|length != 1 }}</small>
@@ -80,6 +102,7 @@
                                     <button class="btn btn-sm btn-outline-info interview-btn"
                                             data-app-id="{{ app.id }}"
                                             data-app-title="{{ app.job_title }} at {{ app.company }}"
+                                            data-company-id="{{ app.company_id }}"
                                             data-interviews='{{ app.interviews | tojson }}'>
                                         <i class="bi bi-camera-video me-1"></i>Interviews
                                     </button>
@@ -89,7 +112,8 @@
                                             data-date="{{ app.date }}"
                                             data-status="{{ app.status or '' }}"
                                             data-resume="{{ app.resume_version }}"
-                                            data-cover="{{ app.cover_letter }}">
+                                            data-cover="{{ app.cover_letter }}"
+                                            data-skills='{{ app.skills_on_resume | tojson }}'>
                                         <i class="bi bi-pencil-square"></i>
                                     </button>
                                     <button class="btn btn-sm btn-outline-danger delete-app-btn"
@@ -156,6 +180,22 @@
                         <input class="form-check-input" type="checkbox" id="coverLetter" name="cover_letter_sent">
                         <label class="form-check-label" for="coverLetter">Cover letter sent</label>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Skills Shown on Resume</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="addSkillInput" placeholder="e.g. Python">
+                            <select class="form-select" id="addSkillLevel" style="max-width:160px">
+                                <option>1+ years</option>
+                                <option>3+ years</option>
+                                <option>5+ years</option>
+                                <option>7+ years</option>
+                                <option>10+ years</option>
+                            </select>
+                            <button type="button" class="btn btn-outline-secondary" id="addSkillBtn"><i class="bi bi-plus-lg"></i></button>
+                        </div>
+                        <div id="addSkillTags" class="mt-2 d-flex flex-wrap gap-1"></div>
+                        <small class="text-muted">Skills from your resume used for this application</small>
+                    </div>
                     <div id="formError" class="alert alert-danger d-none"></div>
                 </form>
             </div>
@@ -212,11 +252,28 @@
                         <input class="form-check-input" type="checkbox" id="editCoverLetter" name="cover_letter_sent">
                         <label class="form-check-label" for="editCoverLetter">Cover letter sent</label>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Skills Shown on Resume</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="editSkillInput" placeholder="e.g. Python">
+                            <select class="form-select" id="editSkillLevel" style="max-width:160px">
+                                <option>1+ years</option>
+                                <option>3+ years</option>
+                                <option>5+ years</option>
+                                <option>7+ years</option>
+                                <option>10+ years</option>
+                            </select>
+                            <button type="button" class="btn btn-outline-secondary" id="editSkillBtn"><i class="bi bi-plus-lg"></i></button>
+                        </div>
+                        <div id="editSkillTags" class="mt-2 d-flex flex-wrap gap-1"></div>
+                        <small class="text-muted">Skills from your resume used for this application</small>
+                    </div>
                     <div id="editFormError" class="alert alert-danger d-none"></div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-outline-info" id="editToInterview"><i class="bi bi-camera-video me-1"></i>Interviews</button>
                 <button type="button" class="btn btn-primary" id="submitEditApp"><i class="bi bi-check-lg me-1"></i>Update Application</button>
             </div>
         </div>
@@ -278,7 +335,28 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">Interviewer</label>
-                            <input type="text" class="form-control" name="interviewer" placeholder="Name">
+                            <select class="form-select" name="interviewer" id="interviewerSelect">
+                                <option value="">Add Contact</option>
+                            </select>
+                            <div id="inlineContactForm" class="border rounded p-2 mt-2 bg-light d-none">
+                                <h6 class="mb-2"><i class="bi bi-person-plus me-1"></i>New Contact</h6>
+                                <div class="mb-2">
+                                    <input type="text" class="form-control form-control-sm" id="newContactName" placeholder="Contact Name *">
+                                </div>
+                                <div class="mb-2">
+                                    <input type="text" class="form-control form-control-sm" id="newContactTitle" placeholder="Title (optional)">
+                                </div>
+                                <div class="mb-2">
+                                    <input type="email" class="form-control form-control-sm" id="newContactEmail" placeholder="Email (optional)">
+                                </div>
+                                <div class="mb-2">
+                                    <input type="tel" class="form-control form-control-sm" id="newContactPhone" placeholder="Phone (optional)">
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-sm btn-primary" id="saveNewContact"><i class="bi bi-check-lg me-1"></i>Save Contact</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="cancelNewContact">Cancel</button>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Outcome</label>
@@ -307,6 +385,53 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
 
+    // ---- Skills Tag Input Helper (with level) ----
+    function setupSkillTags(inputId, levelId, btnId, containerId) {
+        const input = document.getElementById(inputId);
+        const levelSel = document.getElementById(levelId);
+        const btn = document.getElementById(btnId);
+        const container = document.getElementById(containerId);
+        let skills = [];
+
+        function render() {
+            container.innerHTML = '';
+            skills.forEach((s, i) => {
+                const badge = document.createElement('span');
+                badge.className = 'badge bg-primary d-flex align-items-center gap-1';
+                badge.innerHTML = `${s.skill} <small>(${s.level})</small> <i class="bi bi-x-lg" style="cursor:pointer" data-idx="${i}"></i>`;
+                badge.querySelector('i').addEventListener('click', function() {
+                    skills.splice(parseInt(this.getAttribute('data-idx')), 1);
+                    render();
+                });
+                container.appendChild(badge);
+            });
+        }
+
+        function add() {
+            const val = input.value.trim();
+            if (!val) return;
+            if (!skills.some(s => s.skill.toLowerCase() === val.toLowerCase())) {
+                skills.push({ skill: val, level: levelSel.value });
+            }
+            input.value = '';
+            render();
+        }
+
+        btn.addEventListener('click', add);
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); add(); }
+        });
+
+        return {
+            getSkills: () => skills.map(s => ({...s})),
+            setSkills: (arr) => { skills = arr.map(s => typeof s === 'string' ? {skill: s, level: ''} : {...s}); render(); },
+            clear: () => { skills = []; render(); }
+        };
+    }
+
+    const addSkillTags = setupSkillTags('addSkillInput', 'addSkillLevel', 'addSkillBtn', 'addSkillTags');
+    const editSkillTags = setupSkillTags('editSkillInput', 'editSkillLevel', 'editSkillBtn', 'editSkillTags');
+
     // ---- Add Application ----
     document.getElementById('submitApplication').addEventListener('click', async function() {
         const form = document.getElementById('applicationForm');
@@ -319,6 +444,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const data = Object.fromEntries(formData);
         data.job_id = parseInt(data.job_id);
         data.cover_letter_sent = data.cover_letter_sent ? 1 : 0;
+        data.skills_on_resume = addSkillTags.getSkills();
 
         try {
             const response = await fetch('/api/applications', {
@@ -330,8 +456,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (response.ok) {
                 showAlert('Application logged successfully!', 'success');
                 form.reset();
+                addSkillTags.clear();
                 bootstrap.Modal.getInstance(document.getElementById('newApplicationModal')).hide();
-                window.location.href = '/applications';
+                window.location.href = '/applications?scrollTo=' + result.id;
             } else {
                 errorDiv.textContent = result.error || 'Failed to log application';
                 errorDiv.classList.remove('d-none');
@@ -356,9 +483,20 @@ document.addEventListener('DOMContentLoaded', function() {
             form.querySelector('[name="status"]').value = this.getAttribute('data-status');
             form.querySelector('[name="resume_version"]').value = this.getAttribute('data-resume');
             document.getElementById('editCoverLetter').checked = this.getAttribute('data-cover') === '1';
+            // Load skills
+            try {
+                const skills = JSON.parse(this.getAttribute('data-skills') || '[]');
+                editSkillTags.setSkills(skills);
+            } catch(e) { editSkillTags.clear(); }
             document.getElementById('editFormError').classList.add('d-none');
             new bootstrap.Modal(document.getElementById('editAppModal')).show();
         });
+    });
+
+    document.getElementById('editToInterview').addEventListener('click', function() {
+        bootstrap.Modal.getInstance(document.getElementById('editAppModal')).hide();
+        const ivBtn = document.querySelector(`.interview-btn[data-app-id="${currentEditAppId}"]`);
+        if (ivBtn) ivBtn.click();
     });
 
     document.getElementById('submitEditApp').addEventListener('click', async function() {
@@ -372,6 +510,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const data = Object.fromEntries(formData);
         data.job_id = parseInt(data.job_id);
         data.cover_letter_sent = document.getElementById('editCoverLetter').checked ? 1 : 0;
+        data.skills_on_resume = editSkillTags.getSkills();
 
         try {
             const response = await fetch(`/api/applications/${currentEditAppId}`, {
@@ -383,7 +522,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (response.ok) {
                 showAlert('Application updated successfully!', 'success');
                 bootstrap.Modal.getInstance(document.getElementById('editAppModal')).hide();
-                window.location.href = '/applications';
+                window.location.href = '/applications?scrollTo=' + currentEditAppId;
             } else {
                 errorDiv.textContent = result.error || 'Failed to update application';
                 errorDiv.classList.remove('d-none');
@@ -427,6 +566,99 @@ document.addEventListener('DOMContentLoaded', function() {
     // ---- Interview Management ----
     let currentInterviewAppId = null;
     let currentInterviews = [];
+    let currentCompanyId = null;
+
+    async function loadCompanyContacts(companyId) {
+        const select = document.getElementById('interviewerSelect');
+        const inlineForm = document.getElementById('inlineContactForm');
+        select.innerHTML = '<option value="">Add Contact</option>';
+        if (!companyId) return;
+        try {
+            const resp = await fetch(`/api/contacts/company/${companyId}`);
+            const data = await resp.json();
+            if (data.success && data.contacts.length) {
+                data.contacts.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.name;
+                    opt.textContent = c.title ? `${c.name} — ${c.title}` : c.name;
+                    select.appendChild(opt);
+                });
+                select.selectedIndex = 1;
+                inlineForm.classList.add('d-none');
+            } else {
+                // No contacts exist — auto-show the inline form
+                inlineForm.classList.remove('d-none');
+            }
+        } catch(e) {
+            inlineForm.classList.remove('d-none');
+        }
+    }
+
+    // Show/hide inline contact form based on dropdown selection
+    document.getElementById('interviewerSelect').addEventListener('change', function() {
+        const inlineForm = document.getElementById('inlineContactForm');
+        if (this.value === '') {
+            inlineForm.classList.remove('d-none');
+        } else {
+            inlineForm.classList.add('d-none');
+        }
+    });
+
+    document.getElementById('cancelNewContact').addEventListener('click', function() {
+        document.getElementById('inlineContactForm').classList.add('d-none');
+        // Select the first real contact if available, otherwise stay on Add Contact
+        const select = document.getElementById('interviewerSelect');
+        if (select.options.length > 1) {
+            select.selectedIndex = 1;
+        }
+    });
+
+    document.getElementById('saveNewContact').addEventListener('click', async function() {
+        const nameInput = document.getElementById('newContactName');
+        const name = nameInput.value.trim();
+        if (!name) {
+            nameInput.classList.add('is-invalid');
+            return;
+        }
+        nameInput.classList.remove('is-invalid');
+
+        const contactData = {
+            company_id: currentCompanyId,
+            contact_name: name,
+            title: document.getElementById('newContactTitle').value.trim() || null,
+            email: document.getElementById('newContactEmail').value.trim() || null,
+            phone: document.getElementById('newContactPhone').value.trim() || null
+        };
+
+        try {
+            const resp = await fetch('/api/contacts', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(contactData)
+            });
+            const result = await resp.json();
+            if (resp.ok) {
+                // Add to dropdown and select it
+                const select = document.getElementById('interviewerSelect');
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = contactData.title ? `${name} — ${contactData.title}` : name;
+                select.appendChild(opt);
+                select.value = name;
+
+                // Clear and hide inline form
+                document.getElementById('newContactName').value = '';
+                document.getElementById('newContactTitle').value = '';
+                document.getElementById('newContactEmail').value = '';
+                document.getElementById('newContactPhone').value = '';
+                document.getElementById('inlineContactForm').classList.add('d-none');
+            } else {
+                showAlert(result.error || 'Failed to save contact', 'danger');
+            }
+        } catch(e) {
+            showAlert('Error saving contact: ' + e.message, 'danger');
+        }
+    });
 
     function renderInterviews() {
         const container = document.getElementById('interviewList');
@@ -446,13 +678,42 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <br><small class="text-muted">${iv.date || ''}${iv.interviewer ? ' &middot; ' + iv.interviewer : ''}</small>
                                 ${iv.notes ? '<br><small>' + iv.notes + '</small>' : ''}
                             </div>
-                            <button class="btn btn-sm btn-outline-danger delete-interview-btn" data-idx="${i}" title="Remove round">
-                                <i class="bi bi-x-lg"></i>
-                            </button>
+                            <div class="d-flex gap-1">
+                                <button class="btn btn-sm btn-outline-secondary edit-interview-btn" data-idx="${i}" title="Edit round">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger delete-interview-btn" data-idx="${i}" title="Remove round">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>`;
         }).join('');
+
+        container.querySelectorAll('.edit-interview-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const idx = parseInt(this.getAttribute('data-idx'));
+                const iv = currentInterviews[idx];
+                const form = document.getElementById('addInterviewForm');
+                form.querySelector('[name="round"]').value = iv.round || '';
+                form.querySelector('[name="date"]').value = iv.date || '';
+                const select = document.getElementById('interviewerSelect');
+                // Try to select the interviewer in the dropdown
+                let found = false;
+                for (let opt of select.options) {
+                    if (opt.value === iv.interviewer) { select.value = iv.interviewer; found = true; break; }
+                }
+                if (!found) select.value = '';
+                document.getElementById('inlineContactForm').classList.add('d-none');
+                form.querySelector('[name="outcome"]').value = iv.outcome || 'Pending';
+                form.querySelector('[name="notes"]').value = iv.notes || '';
+                // Remove the old entry and re-render
+                currentInterviews.splice(idx, 1);
+                renderInterviews();
+                form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+        });
 
         container.querySelectorAll('.delete-interview-btn').forEach(btn => {
             btn.addEventListener('click', function() {
@@ -478,12 +739,15 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.interview-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             currentInterviewAppId = this.getAttribute('data-app-id');
+            currentCompanyId = this.getAttribute('data-company-id');
             document.getElementById('interviewAppTitle').textContent = this.getAttribute('data-app-title');
             try {
                 currentInterviews = JSON.parse(this.getAttribute('data-interviews') || '[]');
             } catch(e) { currentInterviews = []; }
             renderInterviews();
             document.getElementById('addInterviewForm').reset();
+            document.getElementById('inlineContactForm').classList.add('d-none');
+            loadCompanyContacts(currentCompanyId);
             new bootstrap.Modal(document.getElementById('interviewModal')).show();
         });
     });
@@ -498,24 +762,33 @@ document.addEventListener('DOMContentLoaded', function() {
         renderInterviews();
         form.reset();
         form.querySelector('[name="outcome"]').value = 'Pending';
+        document.getElementById('inlineContactForm').classList.add('d-none');
+        // Re-populate the contacts dropdown (form.reset cleared it)
+        await loadCompanyContacts(currentCompanyId);
     });
 
     document.getElementById('saveCloseInterviews').addEventListener('click', async function() {
-        await saveInterviews();
-        // Update the card's data-interviews attribute so reopening reflects changes
-        const btn = document.querySelector(`.interview-btn[data-app-id="${currentInterviewAppId}"]`);
-        if (btn) {
-            btn.setAttribute('data-interviews', JSON.stringify(currentInterviews));
-            // Update interview count on card
-            const countEl = btn.closest('.card-body').querySelector('.interviews-count');
-            if (countEl) {
-                countEl.textContent = currentInterviews.length
-                    ? `Interviews: ${currentInterviews.length} round${currentInterviews.length !== 1 ? 's' : ''}`
-                    : '';
-            }
+        // If the form has data filled in, validate and add it as a round before saving
+        const form = document.getElementById('addInterviewForm');
+        const roundVal = form.querySelector('[name="round"]').value;
+        const dateVal = form.querySelector('[name="date"]').value;
+        // If user started filling the form, require the required fields
+        if (roundVal || dateVal) {
+            if (!form.checkValidity()) { form.reportValidity(); return; }
+            const formData = new FormData(form);
+            const round = Object.fromEntries(formData);
+            currentInterviews.push(round);
         }
+        // Must have at least one interview round to save
+        if (!currentInterviews.length) {
+            form.reportValidity();
+            return;
+        }
+        await saveInterviews();
         bootstrap.Modal.getInstance(document.getElementById('interviewModal')).hide();
         showAlert('Interview rounds saved successfully.', 'success');
+        // Reload to reflect any status changes (e.g. Final+Pass → Offer)
+        window.location.href = '/applications';
     });
 
     // Auto-open edit modal if ?edit=<id> is in URL
@@ -524,6 +797,21 @@ document.addEventListener('DOMContentLoaded', function() {
     if (editId) {
         const editBtn = document.querySelector(`.edit-app-btn[data-app-id="${editId}"]`);
         if (editBtn) editBtn.click();
+    }
+
+    // Auto-open new application modal if ?new_job=<id> is in URL
+    const newJobId = urlParams.get('new_job');
+    if (newJobId) {
+        const jobSelect = document.querySelector('#applicationForm [name="job_id"]');
+        if (jobSelect) jobSelect.value = newJobId;
+        new bootstrap.Modal(document.getElementById('newApplicationModal')).show();
+    }
+
+    // Auto-open interview modal if ?interview=<id> is in URL
+    const interviewId = urlParams.get('interview');
+    if (interviewId) {
+        const ivBtn = document.querySelector(`.interview-btn[data-app-id="${interviewId}"]`);
+        if (ivBtn) ivBtn.click();
     }
 });
 
@@ -534,5 +822,15 @@ function showAlert(message, type) {
     document.getElementById('alertContainer').appendChild(alertDiv);
     setTimeout(() => alertDiv.remove(), 5000);
 }
+
+// Scroll to card if ?scrollTo= param present
+(function() {
+    const scrollTo = new URLSearchParams(window.location.search).get('scrollTo');
+    if (scrollTo) {
+        const el = document.getElementById('app-card-' + scrollTo);
+        if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
+        window.history.replaceState({}, '', '/applications');
+    }
+})();
 </script>
 {% endblock %}

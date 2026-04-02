@@ -9,57 +9,108 @@
 </div>
 
 <div class="row mb-3">
-    <div class="col-12">
+    <div class="col">
         <a href="/job_match" class="btn w-100 text-white fw-semibold" style="background-color: #20c997;">
             <i class="bi bi-search-heart me-1"></i>Job Match
+        </a>
+    </div>
+    <div class="col-auto">
+        <a href="/companies" class="btn btn-sm btn-outline-light fw-semibold h-100 d-flex align-items-center" style="border-color: #20c997; color: #20c997;">
+            <i class="bi bi-building me-1"></i>Companies <i class="bi bi-arrow-right ms-1"></i>
         </a>
     </div>
 </div>
 
 <div class="row g-2 g-md-4 mb-4">
     <div class="col-6 col-md-6 col-lg-3">
-        <a href="/companies" class="text-decoration-none">
-            <div class="card text-center border-0 shadow-sm h-100" style="cursor:pointer">
-                <div class="card-body px-2 py-3">
-                    <i class="bi bi-building fs-3 fs-md-1 text-info"></i>
-                    <div class="small text-muted mt-1">Companies</div>
-                    <div class="fs-4 fw-bold text-dark">{{ total_companies }}</div>
-                </div>
+        <div class="card text-center border-0 shadow-sm h-100 tile-card" style="cursor:pointer" data-bs-toggle="collapse" data-bs-target="#companiesList" aria-expanded="false">
+            <div class="card-body px-2 py-3">
+                <i class="bi bi-building fs-3 fs-md-1 text-info"></i>
+                <div class="small text-muted mt-1">Companies</div>
+                <div class="fs-4 fw-bold text-dark">{{ total_companies }}</div>
             </div>
-        </a>
+        </div>
     </div>
     <div class="col-6 col-md-6 col-lg-3">
-        <a href="/applications" class="text-decoration-none">
-            <div class="card text-center border-0 shadow-sm h-100" style="cursor:pointer">
-                <div class="card-body px-2 py-3">
-                    <i class="bi bi-file-earmark-text fs-3 fs-md-1 text-primary"></i>
-                    <div class="small text-muted mt-1">Applications</div>
-                    <div class="fs-4 fw-bold text-dark">{{ active_apps }}</div>
-                </div>
+        <div class="card text-center border-0 shadow-sm h-100 tile-card" style="cursor:pointer" data-bs-toggle="collapse" data-bs-target="#applicationsList" aria-expanded="false">
+            <div class="card-body px-2 py-3">
+                <i class="bi bi-file-earmark-text fs-3 fs-md-1 text-primary"></i>
+                <div class="small text-muted mt-1">Applications</div>
+                <div class="fs-4 fw-bold text-dark">{{ active_apps }}</div>
             </div>
-        </a>
+        </div>
     </div>
     <div class="col-6 col-md-6 col-lg-3">
-        <a href="/applications" class="text-decoration-none">
-            <div class="card text-center border-0 shadow-sm h-100" style="cursor:pointer">
-                <div class="card-body px-2 py-3">
-                    <i class="bi bi-camera-video fs-3 fs-md-1 text-warning"></i>
-                    <div class="small text-muted mt-1">Interviews</div>
-                    <div class="fs-4 fw-bold text-dark">{{ in_interviews }}</div>
-                </div>
+        <div class="card text-center border-0 shadow-sm h-100 tile-card" style="cursor:pointer" data-bs-toggle="collapse" data-bs-target="#interviewsList" aria-expanded="false">
+            <div class="card-body px-2 py-3">
+                <i class="bi bi-camera-video fs-3 fs-md-1 text-warning"></i>
+                <div class="small text-muted mt-1">Interviews</div>
+                <div class="fs-4 fw-bold text-dark">{{ in_interviews }}</div>
             </div>
-        </a>
+        </div>
     </div>
     <div class="col-6 col-md-6 col-lg-3">
-        <a href="/applications" class="text-decoration-none">
-            <div class="card text-center border-0 shadow-sm h-100" style="cursor:pointer">
-                <div class="card-body px-2 py-3">
-                    <i class="bi bi-trophy fs-3 fs-md-1 text-success"></i>
-                    <div class="small text-muted mt-1">Offers</div>
-                    <div class="fs-4 fw-bold text-dark">{{ job_offers }}</div>
+        <div class="card text-center border-0 shadow-sm h-100 tile-card" style="cursor:pointer" data-bs-toggle="collapse" data-bs-target="#offersList" aria-expanded="false">
+            <div class="card-body px-2 py-3">
+                <i class="bi bi-trophy fs-3 fs-md-1 text-success"></i>
+                <div class="small text-muted mt-1">Offers</div>
+                <div class="fs-4 fw-bold text-dark">{{ job_offers }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tile detail panels -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="collapse" id="companiesList">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center"><h6 class="mb-0"><i class="bi bi-building me-2"></i>Companies</h6><button type="button" class="btn-close" data-bs-toggle="collapse" data-bs-target="#companiesList" aria-label="Close"></button></div>
+                <div class="list-group list-group-flush">
+                    {% for c in companies_list %}
+                    <a href="/companies?edit={{ c[0] }}" class="list-group-item list-group-item-action">{{ c[1] }}</a>
+                    {% else %}
+                    <div class="list-group-item text-muted">No companies yet.</div>
+                    {% endfor %}
                 </div>
             </div>
-        </a>
+        </div>
+        <div class="collapse" id="applicationsList">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center"><h6 class="mb-0"><i class="bi bi-file-earmark-text me-2"></i>Active Applications</h6><button type="button" class="btn-close" data-bs-toggle="collapse" data-bs-target="#applicationsList" aria-label="Close"></button></div>
+                <div class="list-group list-group-flush">
+                    {% for a in apps_list %}
+                    <a href="/applications?edit={{ a[0] }}" class="list-group-item list-group-item-action">{{ a[1] }} <small class="text-muted">— {{ a[2] }}</small></a>
+                    {% else %}
+                    <div class="list-group-item text-muted">No active applications.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="collapse" id="interviewsList">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center"><h6 class="mb-0"><i class="bi bi-camera-video me-2"></i>In Interviews</h6><button type="button" class="btn-close" data-bs-toggle="collapse" data-bs-target="#interviewsList" aria-label="Close"></button></div>
+                <div class="list-group list-group-flush">
+                    {% for a in interviews_list %}
+                    <a href="/applications?edit={{ a[0] }}" class="list-group-item list-group-item-action">{{ a[1] }} <small class="text-muted">— {{ a[2] }}</small></a>
+                    {% else %}
+                    <div class="list-group-item text-muted">No interviews in progress.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="collapse" id="offersList">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center"><h6 class="mb-0"><i class="bi bi-trophy me-2"></i>Offers</h6><button type="button" class="btn-close" data-bs-toggle="collapse" data-bs-target="#offersList" aria-label="Close"></button></div>
+                <div class="list-group list-group-flush">
+                    {% for a in offers_list %}
+                    <a href="/applications?edit={{ a[0] }}" class="list-group-item list-group-item-action">{{ a[1] }} <small class="text-muted">— {{ a[2] }}</small></a>
+                    {% else %}
+                    <div class="list-group-item text-muted">No offers yet.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -67,23 +118,28 @@
     <div class="col-12">
         <div class="card shadow-sm">
             <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Recent Applications</h5>
+                <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Quick Edit</h5>
             </div>
             <div class="card-body">
                 {% if recent_apps %}
                 <div class="list-group list-group-flush">
                     {% for app in recent_apps %}
-                    <a href="/applications?edit={{ app[0] }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-0 text-decoration-none">
-                        <div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <a href="/applications?edit={{ app[0] }}" class="text-decoration-none flex-grow-1">
                             <strong class="text-dark">{{ app[1] }}</strong>
                             <br><small class="text-muted">{{ app[2] }}</small>
+                        </a>
+                        <div class="d-flex align-items-center gap-2">
+                            <a href="/applications?interview={{ app[0] }}" class="btn btn-sm btn-outline-info" title="Interviews">
+                                <i class="bi bi-camera-video"></i>
+                            </a>
+                            <div class="text-end">
+                                {% set s = app[3] %}
+                                <span class="badge {% if s == 'Offer' %}bg-success{% elif s == 'Rejected' %}bg-danger{% elif s == 'Interview' %}bg-warning text-dark{% elif s == 'Withdrawn' %}bg-secondary{% else %}bg-primary{% endif %}">{{ s }}</span>
+                                <br><small class="text-muted">{{ app[4] }}</small>
+                            </div>
                         </div>
-                        <div class="text-end">
-                            {% set s = app[3] %}
-                            <span class="badge {% if s == 'Offer' %}bg-success{% elif s == 'Rejected' %}bg-danger{% elif s == 'Interview' %}bg-warning text-dark{% elif s == 'Withdrawn' %}bg-secondary{% else %}bg-primary{% endif %}">{{ s }}</span>
-                            <br><small class="text-muted">{{ app[4] }}</small>
-                        </div>
-                    </a>
+                    </div>
                     {% endfor %}
                 </div>
                 {% else %}
@@ -93,4 +149,17 @@
         </div>
     </div>
 </div>
+
+<script>
+document.querySelectorAll('.tile-card').forEach(card => {
+    const target = card.getAttribute('data-bs-target');
+    document.querySelector(target).addEventListener('show.bs.collapse', function() {
+        document.querySelectorAll('#companiesList, #applicationsList, #interviewsList, #offersList').forEach(panel => {
+            if ('#' + panel.id !== target) {
+                bootstrap.Collapse.getOrCreateInstance(panel, {toggle: false}).hide();
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

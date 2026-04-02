@@ -34,7 +34,7 @@
                 {% if jobs %}
                 <div class="row g-4">
                     {% for job in jobs %}
-                    <div class="col-12 col-md-6 col-lg-4">
+                    <div class="col-12 col-md-6 col-lg-4" id="job-card-{{ job.id }}">
                         <div class="card h-100 border-0 shadow-sm">
                             <div class="card-body d-flex flex-column">
                                 <h5 class="card-title text-primary">{{ job.title }}</h5>
@@ -70,6 +70,9 @@
                                 </div>
                                 {% endif %}
                                 <div class="mt-auto pt-2 border-top d-flex gap-2">
+                                    <a href="/applications?new_job={{ job.id }}" class="btn btn-sm btn-outline-success">
+                                        <i class="bi bi-plus-circle me-1"></i>Log Application
+                                    </a>
                                     <a href="{{ job.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
                                         <i class="bi bi-box-arrow-up-right me-1"></i>View Posting
                                     </a>
@@ -429,7 +432,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 form.reset();
                 addTags.setTags([]);
                 bootstrap.Modal.getInstance(document.getElementById('addJobModal')).hide();
-                location.reload(); // Refresh to show the new job
+                window.location.href = '/jobs?scrollTo=' + result.id;
             } else {
                 console.log('✗ API error:', result.error);
                 errorDiv.textContent = result.error || 'Failed to add job';
@@ -441,6 +444,17 @@ document.addEventListener('DOMContentLoaded', function() {
             errorDiv.classList.remove('d-none');
         }
     });
+
+    // Auto-open Add Job modal with company pre-selected if ?new_job_company=<id>
+    const urlParams = new URLSearchParams(window.location.search);
+    const newJobCompany = urlParams.get('new_job_company');
+    if (newJobCompany) {
+        const form = document.getElementById('jobForm');
+        const companySelect = form.querySelector('[name="company_id"]');
+        if (companySelect) companySelect.value = newJobCompany;
+        new bootstrap.Modal(document.getElementById('addJobModal')).show();
+        window.history.replaceState({}, '', '/jobs');
+    }
 
     // ---- Edit Job ----
     let currentEditJobId = null;
@@ -500,7 +514,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (response.ok) {
                 showAlert('Job updated successfully!', 'success');
                 bootstrap.Modal.getInstance(document.getElementById('editJobModal')).hide();
-                location.reload();
+                window.location.href = '/jobs?scrollTo=' + currentEditJobId;
             } else {
                 errorDiv.textContent = result.error || 'Failed to update job';
                 errorDiv.classList.remove('d-none');
@@ -566,5 +580,15 @@ document.querySelectorAll('.salary-input').forEach(input => {
         }
     });
 });
+
+// Scroll to card if ?scrollTo= param present
+(function() {
+    const scrollTo = new URLSearchParams(window.location.search).get('scrollTo');
+    if (scrollTo) {
+        const el = document.getElementById('job-card-' + scrollTo);
+        if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
+        window.history.replaceState({}, '', '/jobs');
+    }
+})();
 </script>
 {% endblock %}
